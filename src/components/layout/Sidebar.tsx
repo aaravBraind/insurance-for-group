@@ -1,5 +1,6 @@
 import type { TabId } from '../../lib/types'
 import { supabase } from '../../lib/supabase'
+import logo from '../../assets/logo.jpg'
 
 interface SidebarProps {
   activeTab: TabId
@@ -19,11 +20,11 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     <aside className="sidebar">
       <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <img
-          src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjZAWb8hk6yw7Dq2nfS6cC7PTS7qA0ewjuyQ&s"
-          alt="Coversure"
+          src={logo}
+          alt="InsuranceForGroup"
           style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '6px', flexShrink: 0 }}
         />
-        <h2>Coversure</h2>
+        <h2>InsuranceForGroup</h2>
       </div>
       <div className="brand-sub">Powered by Ivy</div>
       {navItems.map(item => (

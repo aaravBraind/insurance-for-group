@@ -20,7 +20,8 @@ interface KanbanColumnProps {
   onDrop: (leadId: string, targetStatus: string) => void
 }
 
-function getInitials(c: { first_name: string | null; last_name: string | null }) {
+function getInitials(c: { first_name: string | null; last_name: string | null } | null) {
+  if (!c) return '?'
   return ((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'
 }
 
@@ -85,14 +86,18 @@ function KanbanColumn({ status, leads, onOpenLead, draggingId, dragOverCol, setD
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <span className="kc-name">{l.contact.first_name} {l.contact.last_name}</span>
+                <span className="kc-name">
+                  {l.contact
+                    ? (`${l.contact.first_name ?? ''} ${l.contact.last_name ?? ''}`.trim() || l.contact.phone || l.contact.email || 'Unknown')
+                    : 'Unknown'}
+                </span>
                 {l.origin === 'manual' && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 6px', borderRadius: '10px', background: '#EFF6FF', color: '#3B82F6', fontSize: '10px', fontWeight: 600 }}>
                     <i className="fas fa-user" style={{ fontSize: '9px' }}></i> Manual
                   </span>
                 )}
               </div>
-              <div className="kc-co">{l.contact.phone}</div>
+              <div className="kc-co">{l.contact?.phone ?? l.contact?.email ?? l.policy ?? '—'}</div>
             </div>
           </div>
           <span className="kc-score">{displayScore(l)}</span>
@@ -121,10 +126,11 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
     ? leads.filter(l => {
         const q = search.toLowerCase()
         return (
-          l.contact.first_name?.toLowerCase().includes(q) ||
-          l.contact.last_name?.toLowerCase().includes(q) ||
-          l.contact.phone?.toLowerCase().includes(q) ||
-          l.contact.email?.toLowerCase().includes(q)
+          l.contact?.first_name?.toLowerCase().includes(q) ||
+          l.contact?.last_name?.toLowerCase().includes(q) ||
+          l.contact?.phone?.toLowerCase().includes(q) ||
+          l.contact?.email?.toLowerCase().includes(q) ||
+          l.policy?.toLowerCase().includes(q)
         )
       })
     : leads

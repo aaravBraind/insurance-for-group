@@ -12,7 +12,9 @@ export function useLeads(dateRange: DateRange | null) {
         .order('created_at', { ascending: false })
 
       if (dateRange) {
-        query = query.gte('created_at', dateRange.start).lte('created_at', dateRange.end + 'T23:59:59')
+        query = query
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end + 'T23:59:59')
       }
 
       const { data, error } = await query
@@ -23,37 +25,29 @@ export function useLeads(dateRange: DateRange | null) {
   })
 }
 
-export function useLeadSummary(leadId: string | null) {
-  return useQuery<string | null>({
-    queryKey: ['lead-summary', leadId],
-    queryFn: async () => {
-      if (!leadId) return null
-      const { data } = await supabase
-        .from('lead_generation_log')
-        .select('summary')
-        .eq('lead_id', leadId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      return data?.summary ?? null
-    },
-    enabled: !!leadId,
-  })
-}
-
 export function useCreateLead() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ contact_id, status, details }: {
+    mutationFn: async ({
+      contact_id,
+      status,
+      policy,
+      risk_details,
+      details,
+    }: {
       contact_id: string
       status: string
-      details: Record<string, unknown>
+      policy?: string | null
+      risk_details?: string | null
+      details?: Record<string, unknown>
     }) => {
       const { error } = await supabase.from('leads').insert({
         contact_id,
         status,
         origin: 'manual',
-        details,
+        policy: policy ?? null,
+        risk_details: risk_details ?? null,
+        details: details ?? {},
       })
       if (error) throw error
     },

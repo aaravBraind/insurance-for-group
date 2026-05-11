@@ -9,11 +9,11 @@ export function SettingsTab() {
         </div>
         <div className="settings-row">
           <span className="settings-label">Email</span>
-          <span className="settings-val">malcolm@coversure.co.uk</span>
+          <span className="settings-val">malcolm@InsuranceForGroup.co.uk</span>
         </div>
         <div className="settings-row">
           <span className="settings-label">Organisation</span>
-          <span className="settings-val">Coversure (Kent)</span>
+          <span className="settings-val">InsuranceForGroup (Kent)</span>
         </div>
         <div className="settings-row">
           <span className="settings-label">Plan</span>

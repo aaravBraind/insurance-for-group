@@ -6,7 +6,8 @@ interface LeadCardProps {
   onClick: () => void
 }
 
-function getInitials(c: { first_name: string | null; last_name: string | null }) {
+function getInitials(c: { first_name: string | null; last_name: string | null } | null) {
+  if (!c) return '?'
   return ((c.first_name?.[0] ?? '') + (c.last_name?.[0] ?? '')).toUpperCase() || '?'
 }
 
@@ -25,6 +26,11 @@ export function LeadCard({ lead, statuses, onClick }: LeadCardProps) {
   const statusObj = statuses.find(s => s.name === lead.status)
   const dateLabel = new Date(lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
+  const fullName = contact
+    ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email || 'Unknown'
+    : 'Unknown'
+  const subtitle = contact?.phone ?? contact?.email ?? (lead.policy ?? '—')
+
   return (
     <div className="lead-card" onClick={onClick}>
       <div className="lead-top">
@@ -32,8 +38,8 @@ export function LeadCard({ lead, statuses, onClick }: LeadCardProps) {
           {getInitials(contact)}
         </div>
         <div>
-          <div className="lead-name">{contact.first_name} {contact.last_name}</div>
-          <div className="lead-company">{contact.phone}</div>
+          <div className="lead-name">{fullName}</div>
+          <div className="lead-company">{subtitle}</div>
         </div>
       </div>
       <div className="lead-meta">

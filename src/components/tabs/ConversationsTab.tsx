@@ -12,10 +12,11 @@ interface ConversationsTabProps {
 }
 
 function ConversationDetail({ summary, onBack }: { summary: ConversationSummary; onBack: () => void }) {
-  const { contact } = summary
+  const { contact, channel } = summary
   const name = contact
-    ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone
+    ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email || summary.session_id
     : summary.session_id
+  const channelLabel = channel ? channel.charAt(0).toUpperCase() + channel.slice(1) : 'Unknown'
 
   return (
     <div className="conv-detail" style={{ display: 'block' }}>
@@ -24,11 +25,11 @@ function ConversationDetail({ summary, onBack }: { summary: ConversationSummary;
       </button>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
         <div className="lead-avatar" style={{ background: '#0A8754' }}>
-          {name.slice(0, 2).toUpperCase()}
+          {(name ?? '??').slice(0, 2).toUpperCase()}
         </div>
         <div>
           <div style={{ fontWeight: 700 }}>{name}</div>
-          <div style={{ fontSize: '13px', color: '#7a8fa0' }}>{summary.session_id} · WhatsApp</div>
+          <div style={{ fontSize: '13px', color: '#7a8fa0' }}>{summary.session_id} · {channelLabel}</div>
         </div>
       </div>
       <ConversationChat sessionId={summary.session_id} contactName={name} />
@@ -139,18 +140,27 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
         <tbody>
           {visible.map(c => {
             const name = c.contact
-              ? `${c.contact.first_name ?? ''} ${c.contact.last_name ?? ''}`.trim() || c.session_id
+              ? `${c.contact.first_name ?? ''} ${c.contact.last_name ?? ''}`.trim()
+                || c.contact.phone || c.contact.email || c.session_id
               : c.session_id
             const lastText = c.last_message?.content ?? ''
             const dateLabel = new Date(c.last_message_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+            const channelIcon =
+              c.channel === 'whatsapp' ? 'fab fa-whatsapp' :
+              c.channel === 'email' ? 'fas fa-envelope' :
+              c.channel === 'website' ? 'fas fa-globe' :
+              'fas fa-comment'
+            const channelLabel = c.channel
+              ? c.channel.charAt(0).toUpperCase() + c.channel.slice(1)
+              : 'Unknown'
 
             return (
               <tr key={c.session_id} onClick={() => setSelected(c)}>
                 <td><strong>{name}</strong></td>
-                <td>{c.session_id}</td>
+                <td>{c.contact?.phone ?? c.contact?.email ?? c.session_id}</td>
                 <td>
                   <span className="channel-badge ch-wa">
-                    <i className="fab fa-whatsapp"></i> WhatsApp
+                    <i className={channelIcon}></i> {channelLabel}
                   </span>
                 </td>
                 <td style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

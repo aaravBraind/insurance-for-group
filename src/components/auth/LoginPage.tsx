@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import logo from '../../assets/logo.jpg'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -22,11 +23,11 @@ export function LoginPage() {
         <div className="login-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '6px' }}>
             <img
-              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjZAWb8hk6yw7Dq2nfS6cC7PTS7qA0ewjuyQ&s"
-              alt="Coversure"
+              src={logo}
+              alt="InsuranceForGroup"
               style={{ width: '34px', height: '34px', objectFit: 'contain', borderRadius: '8px' }}
             />
-            <span style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a' }}>Coversure</span>
+            <span style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a' }}>InsuranceForGroup</span>
           </div>
           <div style={{ fontSize: '13px', color: '#7a8fa0', textAlign: 'center' }}>Powered by Ivy</div>
         </div>

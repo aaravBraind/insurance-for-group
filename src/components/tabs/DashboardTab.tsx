@@ -13,7 +13,10 @@ interface DashboardTabProps {
 
 function LeadStatusChart({ leads, statuses }: { leads: LeadWithContact[]; statuses: Status[] }) {
   const counts: Record<string, number> = {}
-  for (const l of leads) counts[l.status] = (counts[l.status] ?? 0) + 1
+  for (const l of leads) {
+    if (!l.status) continue
+    counts[l.status] = (counts[l.status] ?? 0) + 1
+  }
   const max = Math.max(...statuses.map(s => counts[s.name] ?? 0), 1)
 
   return (

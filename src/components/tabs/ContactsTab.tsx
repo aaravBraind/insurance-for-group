@@ -42,7 +42,7 @@ function ConvertToLeadModal({
   const createLead = useCreateLead()
   const [status, setStatus] = useState('')
   const [policy, setPolicy] = useState('')
-  const [summary, setSummary] = useState('')
+  const [riskDetails, setRiskDetails] = useState('')
   const [extraFields, setExtraFields] = useState<{ name: string; value: string }[]>([{ name: '', value: '' }])
 
   function addField() {
@@ -60,15 +60,22 @@ function ConvertToLeadModal({
   function handleSubmit() {
     if (!status) return
     const details: Record<string, unknown> = {}
-    if (policy) details.policy = policy
-    if (summary) details.summary = summary
     for (const f of extraFields) {
       if (f.name.trim()) details[f.name.trim()] = f.value
     }
-    createLead.mutate({ contact_id: contact.id, status, details }, { onSuccess: onClose })
+    createLead.mutate(
+      {
+        contact_id: contact.id,
+        status,
+        policy: policy || null,
+        risk_details: riskDetails || null,
+        details,
+      },
+      { onSuccess: onClose },
+    )
   }
 
-  const name = `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone
+  const name = `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email || 'Contact'
 
   return (
     <div className="lead-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -106,26 +113,26 @@ function ConvertToLeadModal({
             </select>
           </div>
 
-          {/* Policy */}
+          {/* Policy (column on leads) */}
           <div>
             <label style={labelStyle}>Policy</label>
             <input
               type="text"
-              placeholder="e.g. Life Insurance, Health Cover"
+              placeholder="e.g. corporate_group, landlord, commercial"
               value={policy}
               onChange={e => setPolicy(e.target.value)}
               style={inputStyle}
             />
           </div>
 
-          {/* Summary */}
+          {/* Risk Details (column on leads) */}
           <div>
-            <label style={labelStyle}>Summary</label>
+            <label style={labelStyle}>Risk Details</label>
             <input
               type="text"
-              placeholder="e.g. High risk, pre-existing conditions"
-              value={summary}
-              onChange={e => setSummary(e.target.value)}
+              placeholder="e.g. high risk, pre-existing conditions"
+              value={riskDetails}
+              onChange={e => setRiskDetails(e.target.value)}
               style={inputStyle}
             />
           </div>
@@ -205,8 +212,7 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
       c.phone?.toLowerCase().includes(q) ||
       c.first_name?.toLowerCase().includes(q) ||
       c.last_name?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.location?.toLowerCase().includes(q)
+      c.email?.toLowerCase().includes(q)
     )
   })
 
@@ -235,10 +241,10 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
         <tbody>
           {filtered.map(c => (
             <tr key={c.id}>
-              <td><strong>{c.first_name} {c.last_name}</strong></td>
-              <td>{c.phone}</td>
+              <td><strong>{c.first_name ?? ''} {c.last_name ?? ''}</strong></td>
+              <td>{c.phone ?? '—'}</td>
               <td>{c.email ?? '—'}</td>
-              <td style={{ textTransform: 'capitalize' }}>{c.origin}</td>
+              <td style={{ textTransform: 'capitalize' }}>{c.origin ?? '—'}</td>
               <td>
                 {c.lead ? (
                   <span className="status-badge" style={{ background: '#f0fdf4', color: '#15803d' }}>Converted</span>

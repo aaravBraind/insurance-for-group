@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import ivyAvatar from '../../assets/ivy.webp'
 
 interface DemoAnswers {
   name?: string
@@ -25,7 +26,7 @@ interface DemoStep {
 
 const STEPS: DemoStep[] = [
   {
-    getPrompt: () => "Hi there! 👋 Welcome to Coversure. I'm Ivy — Malcolm's AI assistant. I'd love to help you explore your insurance options. What's your name?",
+    getPrompt: () => "Hi there! 👋 Welcome to InsuranceForGroup. I'm Ivy — Malcolm's AI assistant. I'd love to help you explore your insurance options. What's your name?",
     input: 'text',
     field: 'name',
   },
@@ -138,31 +139,52 @@ export function DemoModal({ onClose }: DemoModalProps) {
   }
 
   async function viewInPipeline() {
-    // Insert a new lead + contact into Supabase
+    // Insert a new contact + lead, aligned with the real schema:
+    //   - statuses.name is `ifg_in_progress` (free-text), not `new_lead`
+    //   - leads has dedicated `policy` and `risk_details` columns
+    //   - `details` is freeform jsonb the agents fill in over time
     try {
       const phone = `demo_${Date.now()}`
-      const { data: contact } = await supabase
+      const { data: contact, error: contactErr } = await supabase
         .from('contacts')
-        .insert({ phone, first_name: answers.name?.split(' ')[0] ?? 'Demo', last_name: answers.name?.split(' ').slice(1).join(' ') || null, email: answers.email ?? null, origin: 'demo' })
+        .insert({
+          phone,
+          first_name: answers.name?.split(' ')[0] ?? 'Demo',
+          last_name: answers.name?.split(' ').slice(1).join(' ') || null,
+          email: answers.email ?? null,
+          origin: 'demo',
+        })
         .select()
         .single()
+      if (contactErr) throw contactErr
 
       if (contact) {
-        await supabase.from('leads').insert({
+        const policyMap: Record<string, string> = {
+          'Landlords Insurance': 'landlord',
+          'Commercial Property': 'commercial_property',
+          'Buildings Insurance': 'buildings',
+        }
+        const { error: leadErr } = await supabase.from('leads').insert({
           contact_id: contact.id,
           ai_score: Math.round(score * 10),
-          status: 'new_lead',
+          status: 'ifg_in_progress',
           origin: 'demo',
+          policy: policyMap[answers.insuranceType ?? ''] ?? 'other',
+          risk_details: null,
           details: {
-            insurance_type: answers.insuranceType,
+            stage: 'awaiting_qualification',
+            organisation: answers.company ?? 'unknown',
             num_properties: answers.numProps,
-            cover_needed: answers.policyStatus,
+            policy_status: answers.policyStatus,
             callback_time: answers.callbackTime,
+            channel_preference: 'email',
           },
         })
+        if (leadErr) throw leadErr
       }
     } catch (e) {
       console.error('Demo insert failed:', e)
+      alert('Could not save demo lead — check the console for details.')
     }
     onClose()
   }
@@ -181,7 +203,13 @@ export function DemoModal({ onClose }: DemoModalProps) {
     <div className="demo-modal active">
       <div className="demo-frame">
         <div className="demo-header">
-          <div className="demo-avatar">🌿</div>
+          <div className="demo-avatar" style={{ overflow: 'hidden', padding: 0, background: 'transparent' }}>
+            <img
+              src={ivyAvatar}
+              alt="Ivy"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
           <div>
             <div style={{ fontWeight: 600, fontSize: '15px' }}>Ivy Qualification Bot</div>
             <div style={{ fontSize: '11px', opacity: 0.8 }}>Online</div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLeadSummary, useUpdateLeadStatus } from '../../hooks/useLeads'
+import { useUpdateLeadStatus } from '../../hooks/useLeads'
 import { ConversationChat } from '../shared/ConversationChat'
 import type { LeadWithContact, Status } from '../../lib/types'
 
@@ -10,22 +10,27 @@ interface DetailPanelProps {
   onViewConversation: (sessionId: string) => void
 }
 
+// Labels for the keys Ivy / Hugh write into leads.details.
 const LABEL_MAP: Record<string, string> = {
-  insurance_type: 'Insurance Type',
-  num_properties: 'Properties',
-  cover_needed: 'Cover Needed',
-  callback_time: 'Callback Time',
-  term: 'Term',
-  cover_amount: 'Cover Amount',
-  annual_salary: 'Annual Salary',
-  occupation: 'Occupation',
-  renewal_date: 'Renewal Date',
-  date_of_birth: 'Date of Birth',
-  smoker_status: 'Smoker Status',
-  retirement_age: 'Retirement Age',
-  deferred_period: 'Deferred Period',
-  current_provider: 'Current Provider',
+  stage: 'Stage',
+  purpose: 'Purpose',
+  duration: 'Duration',
+  org_type: 'Organisation Type',
+  destination: 'Destination',
+  is_returning: 'Returning Customer',
+  organisation: 'Organisation',
+  channel_preference: 'Channel Preference',
+  handoff_sent_at: 'Handoff Sent',
+  hugh_notified_at: 'Hugh Notified',
+  last_user_message_at: 'Last User Message',
 }
+
+// Keys we never want to surface in the "Additional Details" grid (internal /
+// shown elsewhere on the panel).
+const HIDDEN_KEYS = new Set<string>([
+  'conversation_summary',
+  'channel_session_id',
+])
 
 function toTitleCase(key: string) {
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -33,6 +38,13 @@ function toTitleCase(key: string) {
 
 function formatValue(v: unknown): string {
   if (v === null || v === undefined || v === 'null' || v === '') return '—'
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+    const d = new Date(v)
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('en-IE', { dateStyle: 'medium', timeStyle: 'short' })
+    }
+  }
   return String(v)
 }
 
@@ -47,7 +59,6 @@ function timeAgo(dateStr: string): string {
 }
 
 export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
-  const { data: summary } = useLeadSummary(lead?.id ?? null)
   const updateStatus = useUpdateLeadStatus()
   const [currentStatus, setCurrentStatus] = useState(lead?.status ?? '')
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
@@ -66,27 +77,39 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
   }, [statusDropdownOpen])
 
   useEffect(() => {
-    if (lead) { setCurrentStatus(lead.status); setConvOpen(false) }
+    if (lead) { setCurrentStatus(lead.status ?? ''); setConvOpen(false) }
   }, [lead?.id])
 
   if (!lead) return null
 
-  const { contact } = lead
+  const contact = lead.contact
   const statusObj = statuses.find(s => s.name === currentStatus)
   const displayScore = lead.ai_score != null
     ? (lead.ai_score > 10 ? (lead.ai_score / 10).toFixed(1) : lead.ai_score.toFixed(1))
     : null
 
-  const detailEntries = lead.details ? Object.entries(lead.details) : []
+  const summary = lead.details?.conversation_summary ?? null
+
+  const detailEntries = lead.details
+    ? Object.entries(lead.details).filter(([k, v]) =>
+        !HIDDEN_KEYS.has(k) && v !== null && v !== undefined && v !== '' && v !== 'unknown'
+      )
+    : []
 
   function handleStatusChange(newStatus: string) {
     setCurrentStatus(newStatus)
     updateStatus.mutate({ leadId: lead!.id, status: newStatus })
   }
 
-  const contactName = `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone
+  const contactName = contact
+    ? (`${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim()
+        || contact.phone || contact.email || 'Unknown')
+    : 'Unknown'
 
-  if (convOpen) {
+  // session_id lives on the lead itself; fall back to nothing if absent.
+  const sessionId = lead.session_id ?? null
+
+  if (convOpen && sessionId) {
     return (
       <div className="lead-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConvOpen(false) }}>
         <div className="lead-modal">
@@ -100,7 +123,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
             <span style={{ fontWeight: 700, fontSize: '14px', color: '#1a1a1a' }}>{contactName} · Conversation</span>
           </div>
           <div style={{ padding: '0 16px 16px' }}>
-            <ConversationChat sessionId={contact.phone} contactName={contactName} />
+            <ConversationChat sessionId={sessionId} contactName={contactName} />
           </div>
         </div>
       </div>
@@ -126,7 +149,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
         {/* Name + status dropdown + view conversation */}
         <div style={{ padding: '0 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '22px', fontWeight: 800, color: '#1a1a1a' }}>
-            {contact.first_name} {contact.last_name}
+            {contact ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email : 'Unknown contact'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* Custom status dropdown */}
@@ -144,7 +167,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
                   cursor: 'pointer', outline: 'none',
                 }}
               >
-                {statusObj?.label ?? currentStatus}
+                {statusObj?.label ?? currentStatus ?? '—'}
                 <i className="fas fa-chevron-down" style={{ fontSize: '10px' }}></i>
               </button>
               {statusDropdownOpen && (
@@ -174,41 +197,64 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => setConvOpen(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: '1.5px solid #e0e6ed', background: 'white', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#1a1a1a', cursor: 'pointer' }}
-            >
-              <i className="fas fa-comments" style={{ fontSize: '12px' }}></i> View Conversation
-            </button>
+            {sessionId && (
+              <button
+                onClick={() => setConvOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: '1.5px solid #e0e6ed', background: 'white', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#1a1a1a', cursor: 'pointer' }}
+              >
+                <i className="fas fa-comments" style={{ fontSize: '12px' }}></i> View Conversation
+              </button>
+            )}
           </div>
         </div>
 
         {/* Contact Information */}
-        <div className="lead-modal-section">
-          <div className="lead-modal-section-title">
-            <i className="fas fa-user" style={{ color: '#0A8754', fontSize: '13px' }}></i> Contact Information
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-              <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#EBF5FB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <i className="fas fa-envelope" style={{ color: '#3B82F6', fontSize: '13px' }}></i>
+        {contact && (
+          <div className="lead-modal-section">
+            <div className="lead-modal-section-title">
+              <i className="fas fa-user" style={{ color: '#0A8754', fontSize: '13px' }}></i> Contact Information
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#EBF5FB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <i className="fas fa-envelope" style={{ color: '#3B82F6', fontSize: '13px' }}></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#7a8fa0' }}>Email</div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{contact.email ?? '—'}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: '12px', color: '#7a8fa0' }}>Email</div>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{contact.email ?? '—'}</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <i className="fas fa-phone" style={{ color: '#0A8754', fontSize: '13px' }}></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#7a8fa0' }}>Phone</div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>{contact.phone ?? '—'}</div>
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-              <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <i className="fas fa-phone" style={{ color: '#0A8754', fontSize: '13px' }}></i>
+          </div>
+        )}
+
+        {/* Policy / Risk */}
+        {(lead.policy || lead.risk_details) && (
+          <div className="lead-modal-section">
+            <div className="lead-modal-section-title">
+              <i className="fas fa-shield-alt" style={{ color: '#0A8754', fontSize: '13px' }}></i> Policy
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <div style={{ fontSize: '12px', color: '#7a8fa0', marginBottom: '2px' }}>Policy</div>
+                <div style={{ fontSize: '13px', fontWeight: 500 }}>{lead.policy ?? '—'}</div>
               </div>
               <div>
-                <div style={{ fontSize: '12px', color: '#7a8fa0' }}>Phone</div>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{contact.phone}</div>
+                <div style={{ fontSize: '12px', color: '#7a8fa0', marginBottom: '2px' }}>Risk Details</div>
+                <div style={{ fontSize: '13px', fontWeight: 500 }}>{lead.risk_details ?? '—'}</div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Timeline */}
         <div className="lead-modal-section">
@@ -234,7 +280,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
               </div>
               <div>
                 <div style={{ fontSize: '12px', color: '#7a8fa0' }}>Current Stage</div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{statusObj?.label ?? currentStatus}</div>
+                <div style={{ fontSize: '13px', fontWeight: 600 }}>{statusObj?.label ?? currentStatus ?? '—'}</div>
               </div>
             </div>
           </div>
@@ -256,13 +302,15 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
           </div>
         )}
 
-        {/* Summary */}
+        {/* Conversation Summary (from details.conversation_summary) */}
         {summary && (
           <div className="lead-modal-section">
             <div className="lead-modal-section-title">
-              <i className="fas fa-file-alt" style={{ color: '#1a1a1a', fontSize: '13px' }}></i> Summary
+              <i className="fas fa-file-alt" style={{ color: '#1a1a1a', fontSize: '13px' }}></i> Conversation Summary
             </div>
-            <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#374151', margin: 0 }}>{summary}</p>
+            <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#374151', margin: 0, whiteSpace: 'pre-wrap' }}>
+              {String(summary)}
+            </p>
           </div>
         )}
 
