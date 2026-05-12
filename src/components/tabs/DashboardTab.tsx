@@ -58,7 +58,10 @@ export function DashboardTab({ onOpenLead, dateRange }: DashboardTabProps) {
         <StatCard value={stats?.totalContacts ?? 0} label="Total Contacts" />
         <StatCard value={stats?.totalConversations ?? 0} label="Conversations" />
         <StatCard value={stats?.avgAiScore?.toFixed(1) ?? '—'} label="Avg AI Score" />
-        <StatCard value={`${stats?.conversionRate ?? 0}%`} label="Conversion Rate" />
+        <StatCard
+          value={`${stats?.conversionRate ?? 0}%`}
+          label={`Conversion Rate (${stats?.convertedLeads ?? 0}/${stats?.totalLeads ?? 0})`}
+        />
       </div>
 
       <LeadStatusChart leads={leads} statuses={statuses} />

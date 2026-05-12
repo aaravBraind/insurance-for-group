@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
@@ -12,6 +12,7 @@ import { LoginPage } from './components/auth/LoginPage'
 import { LoadingSpinner } from './components/shared/LoadingSpinner'
 import { useAuth } from './hooks/useAuth'
 import { useStatuses } from './hooks/useStatuses'
+import { useLeadById } from './hooks/useLeads'
 import type { TabId, LeadWithContact, DateRange } from './lib/types'
 
 const queryClient = new QueryClient()
@@ -30,11 +31,22 @@ function AppInner() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard')
   const [selectedLead, setSelectedLead] = useState<LeadWithContact | null>(null)
   const [autoOpenSession, setAutoOpenSession] = useState<string | null>(null)
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>({
     start: daysAgoISO(30),
     end: todayISO(),
   })
   const { data: statuses = [] } = useStatuses()
+
+  // When the alerts panel asks to open a lead by id, fetch it and slot it
+  // into the existing DetailPanel state.
+  const { data: leadByIdData } = useLeadById(openLeadId)
+  useEffect(() => {
+    if (leadByIdData && leadByIdData.id === openLeadId) {
+      setSelectedLead(leadByIdData)
+      setOpenLeadId(null)
+    }
+  }, [leadByIdData, openLeadId])
 
   function handleViewConversation(sessionId: string) {
     setSelectedLead(null)
@@ -46,7 +58,12 @@ function AppInner() {
     <div className="container">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <div className="main-content">
-        <Header activeTab={activeTab} dateRange={dateRange} onDateRangeChange={setDateRange} />
+        <Header
+          activeTab={activeTab}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          onOpenLeadById={setOpenLeadId}
+        />
         <div className="content">
           {activeTab === 'dashboard' && (
             <DashboardTab onOpenLead={setSelectedLead} dateRange={dateRange} />

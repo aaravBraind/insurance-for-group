@@ -34,3 +34,19 @@ export function useMarkAlertRead() {
     },
   })
 }
+
+export function useMarkAllAlertsRead() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('dashboard_alerts')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('is_read', false)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard_alerts'] })
+    },
+  })
+}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import type { TabId, DateRange } from '../../lib/types'
+import { AlertsPanel } from './AlertsPanel'
 
 const TAB_TITLES: Record<TabId, string> = {
   dashboard: 'Dashboard',
@@ -19,9 +20,10 @@ interface HeaderProps {
   activeTab: TabId
   dateRange: DateRange
   onDateRangeChange: (r: DateRange) => void
+  onOpenLeadById: (leadId: string) => void
 }
 
-export function Header({ activeTab, dateRange, onDateRangeChange }: HeaderProps) {
+export function Header({ activeTab, dateRange, onDateRangeChange, onOpenLeadById }: HeaderProps) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [draft, setDraft] = useState<DateRange>(dateRange)
   const popoverRef = useRef<HTMLDivElement>(null)
@@ -125,10 +127,10 @@ export function Header({ activeTab, dateRange, onDateRangeChange }: HeaderProps)
           )}
         </div>
 
-        <button className="notif-bell"><i className="fas fa-bell"></i></button>
+        <AlertsPanel onOpenLead={onOpenLeadById} />
         <div className="user-info">
           <div className="user-avatar">MS</div>
-          <span style={{ fontSize: '13px', fontWeight: 600 }}>Malcolm</span>
+          <span style={{ fontSize: '13px', fontWeight: 600 }}>Hugh</span>
         </div>
       </div>
     </header>

@@ -5,11 +5,11 @@ export function SettingsTab() {
       <div className="settings-card">
         <div className="settings-row">
           <span className="settings-label">Name</span>
-          <span className="settings-val">Malcolm Skinner</span>
+          <span className="settings-val">Hugh</span>
         </div>
         <div className="settings-row">
           <span className="settings-label">Email</span>
-          <span className="settings-val">malcolm@InsuranceForGroup.co.uk</span>
+          <span className="settings-val">Hugh@InsuranceForGroup.co.uk</span>
         </div>
         <div className="settings-row">
           <span className="settings-label">Organisation</span>

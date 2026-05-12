@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useConversations } from '../../hooks/useConversations'
+import { useStatuses } from '../../hooks/useStatuses'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
 import { EmptyState } from '../shared/EmptyState'
 import { ConversationChat } from '../shared/ConversationChat'
@@ -53,6 +54,7 @@ const filterBtnStyle = (active: boolean): React.CSSProperties => ({
 
 export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled }: ConversationsTabProps) {
   const { data: conversations = [], isLoading } = useConversations(dateRange)
+  const { data: statuses = [] } = useStatuses()
   const [selected, setSelected] = useState<ConversationSummary | null>(null)
   const [search, setSearch] = useState('')
   const [minMessages, setMinMessages] = useState(0)
@@ -85,8 +87,11 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
       if (!nameMatch) return false
     }
     if (c.message_count < minMessages) return false
-    if (leadFilter === 'converted' && c.lead === null) return false
-    if (leadFilter === 'not_converted' && c.lead !== null) return false
+    // "Converted" = the lead actually reached the ifg_converted status,
+    // not just "has any lead row" (Ivy creates a lead row for every chat).
+    const isConverted = c.lead?.status === 'ifg_converted'
+    if (leadFilter === 'converted' && !isConverted) return false
+    if (leadFilter === 'not_converted' && isConverted) return false
     return true
   })
 
@@ -167,11 +172,29 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
                   {lastText}
                 </td>
                 <td>
-                  {c.lead !== null ? (
-                    <span className="status-badge" style={{ background: '#f0fdf4', color: '#15803d' }}>Converted</span>
-                  ) : (
-                    <span className="status-badge st-closed">Not Converted</span>
-                  )}
+                  {(() => {
+                    const leadStatus = c.lead?.status ?? null
+                    if (!leadStatus) {
+                      return <span className="status-badge st-closed">No Lead</span>
+                    }
+                    const statusObj = statuses.find(s => s.name === leadStatus)
+                    const isConverted = leadStatus === 'ifg_converted'
+                    if (!statusObj) {
+                      return <span className="status-badge st-closed">{leadStatus}</span>
+                    }
+                    return (
+                      <span
+                        className="status-badge"
+                        style={{
+                          background: isConverted ? '#f0fdf4' : statusObj.colour + '20',
+                          color: isConverted ? '#15803d' : statusObj.colour,
+                          border: isConverted ? '1px solid #bbf7d0' : 'none',
+                        }}
+                      >
+                        {statusObj.label}
+                      </span>
+                    )
+                  })()}
                 </td>
                 <td style={{ color: '#7a8fa0', textAlign: 'center' }}>{c.message_count}</td>
                 <td style={{ color: '#7a8fa0' }}>{dateLabel}</td>

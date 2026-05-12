@@ -234,31 +234,47 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
             <th>Phone</th>
             <th>Email</th>
             <th>Source</th>
-            <th>Converted</th>
+            <th>Lead Status</th>
             <th>Created At</th>
           </tr>
         </thead>
         <tbody>
-          {filtered.map(c => (
-            <tr key={c.id}>
-              <td><strong>{c.first_name ?? ''} {c.last_name ?? ''}</strong></td>
-              <td>{c.phone ?? '—'}</td>
-              <td>{c.email ?? '—'}</td>
-              <td style={{ textTransform: 'capitalize' }}>{c.origin ?? '—'}</td>
-              <td>
-                {c.lead ? (
-                  <span className="status-badge" style={{ background: '#f0fdf4', color: '#15803d' }}>Converted</span>
-                ) : (
-                  <button className="convert-btn" onClick={() => setConvertingContact(c)}>
-                    Convert to Lead
-                  </button>
-                )}
-              </td>
-              <td style={{ color: '#7a8fa0', whiteSpace: 'nowrap' }}>
-                {new Date(c.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </td>
-            </tr>
-          ))}
+          {filtered.map(c => {
+            const leadStatus = c.lead?.status ?? null
+            const statusObj = leadStatus ? statuses.find(s => s.name === leadStatus) : null
+            const isConverted = leadStatus === 'ifg_converted'
+            return (
+              <tr key={c.id}>
+                <td><strong>{c.first_name ?? ''} {c.last_name ?? ''}</strong></td>
+                <td>{c.phone ?? '—'}</td>
+                <td>{c.email ?? '—'}</td>
+                <td style={{ textTransform: 'capitalize' }}>{c.origin ?? '—'}</td>
+                <td>
+                  {!c.lead ? (
+                    <button className="convert-btn" onClick={() => setConvertingContact(c)}>
+                      Convert to Lead
+                    </button>
+                  ) : statusObj ? (
+                    <span
+                      className="status-badge"
+                      style={{
+                        background: (isConverted ? '#f0fdf4' : statusObj.colour + '20'),
+                        color: (isConverted ? '#15803d' : statusObj.colour),
+                        border: isConverted ? '1px solid #bbf7d0' : 'none',
+                      }}
+                    >
+                      {statusObj.label}
+                    </span>
+                  ) : (
+                    <span className="status-badge st-closed">{leadStatus ?? '—'}</span>
+                  )}
+                </td>
+                <td style={{ color: '#7a8fa0', whiteSpace: 'nowrap' }}>
+                  {new Date(c.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 

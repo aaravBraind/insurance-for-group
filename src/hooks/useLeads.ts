@@ -60,6 +60,25 @@ export function useCreateLead() {
   })
 }
 
+// Fetch a single lead with its embedded contact by id. Used by the alerts
+// panel to open a lead in the DetailPanel.
+export function useLeadById(leadId: string | null) {
+  return useQuery<LeadWithContact | null>({
+    queryKey: ['lead', leadId],
+    queryFn: async () => {
+      if (!leadId) return null
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*, contact:contacts(*)')
+        .eq('id', leadId)
+        .maybeSingle()
+      if (error) throw error
+      return (data as LeadWithContact | null) ?? null
+    },
+    enabled: !!leadId,
+  })
+}
+
 export function useUpdateLeadStatus() {
   const queryClient = useQueryClient()
   return useMutation({

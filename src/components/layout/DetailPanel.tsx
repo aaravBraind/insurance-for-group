@@ -1,7 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { useUpdateLeadStatus } from '../../hooks/useLeads'
+import { useFollowupsForLead } from '../../hooks/useFollowups'
 import { ConversationChat } from '../shared/ConversationChat'
-import type { LeadWithContact, Status } from '../../lib/types'
+import type { LeadWithContact, Status, FollowupSchedule } from '../../lib/types'
+
+const STEP_LABEL: Record<FollowupSchedule['next_step'], string> = {
+  step_20min: '20-min check-in',
+  step_day3:  'Day 3 follow-up',
+  step_day7:  'Day 7 follow-up',
+  completed:  'Completed',
+  cancelled:  'Cancelled',
+}
+
+function followupStateMeta(f: FollowupSchedule): { icon: string; label: string; colour: string } {
+  if (f.cancelled_at) return { icon: '❌', label: 'Cancelled', colour: '#EF4444' }
+  if (f.completed_at) return { icon: '✅', label: 'Sent',      colour: '#0A8754' }
+  return { icon: '⏳', label: 'Pending', colour: '#F59E0B' }
+}
 
 interface DetailPanelProps {
   lead: LeadWithContact | null
@@ -60,6 +75,7 @@ function timeAgo(dateStr: string): string {
 
 export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
   const updateStatus = useUpdateLeadStatus()
+  const { data: followups = [] } = useFollowupsForLead(lead?.id ?? null)
   const [currentStatus, setCurrentStatus] = useState(lead?.status ?? '')
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
   const [convOpen, setConvOpen] = useState(false)
@@ -313,6 +329,87 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
             </p>
           </div>
         )}
+
+        {/* Follow-up Schedule (from `followup_schedule` table) — always shown */}
+        <div className="lead-modal-section">
+          <div className="lead-modal-section-title">
+            <i className="fas fa-calendar-check" style={{ color: '#0A8754', fontSize: '13px' }}></i> Follow-up Schedule
+            <span style={{ marginLeft: '8px', fontSize: '11px', color: '#7a8fa0', fontWeight: 500 }}>
+              {followups.length} {followups.length === 1 ? 'item' : 'items'}
+            </span>
+          </div>
+          {followups.length === 0 ? (
+            <div
+              style={{
+                padding: '14px',
+                border: '1px dashed #e0e6ed',
+                borderRadius: '10px',
+                fontSize: '12.5px',
+                color: '#7a8fa0',
+                textAlign: 'center',
+              }}
+            >
+              No follow-ups scheduled for this lead.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {followups.map(f => {
+                const meta = followupStateMeta(f)
+                const stepLabel = STEP_LABEL[f.next_step] ?? f.next_step
+                const dateStr = new Date(f.next_due_at).toLocaleString('en-IE', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })
+                return (
+                  <div
+                    key={f.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      padding: '10px 12px',
+                      border: '1px solid #e0e6ed',
+                      borderRadius: '10px',
+                      background: f.cancelled_at ? '#fef2f2' : f.completed_at ? '#f0fdf4' : 'white',
+                    }}
+                  >
+                    <div style={{ fontSize: '16px', lineHeight: 1, paddingTop: '1px' }}>{meta.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#1a1a1a' }}>{stepLabel}</span>
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            background: meta.colour + '20',
+                            color: meta.colour,
+                            fontSize: '11px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#7a8fa0', marginTop: '2px' }}>
+                        Due {dateStr}
+                      </div>
+                      {f.cancelled_at && f.cancelled_reason && (
+                        <div style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', lineHeight: 1.4 }}>
+                          Reason: {f.cancelled_reason}
+                        </div>
+                      )}
+                      {f.completed_at && (
+                        <div style={{ fontSize: '12px', color: '#7a8fa0', marginTop: '4px' }}>
+                          Sent {new Date(f.completed_at).toLocaleString('en-IE', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Additional Details */}
         {detailEntries.length > 0 && (
