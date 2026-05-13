@@ -104,8 +104,6 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
     ? (lead.ai_score > 10 ? (lead.ai_score / 10).toFixed(1) : lead.ai_score.toFixed(1))
     : null
 
-  const summary = lead.details?.conversation_summary ?? null
-
   const detailEntries = lead.details
     ? Object.entries(lead.details).filter(([k, v]) =>
         !HIDDEN_KEYS.has(k) && v !== null && v !== undefined && v !== '' && v !== 'unknown'
@@ -315,18 +313,6 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
                 <div style={{ height: '100%', width: `${Math.min(parseFloat(displayScore) * 10, 100)}%`, background: '#0A8754', borderRadius: '4px' }}></div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Conversation Summary (from details.conversation_summary) */}
-        {summary && (
-          <div className="lead-modal-section">
-            <div className="lead-modal-section-title">
-              <i className="fas fa-file-alt" style={{ color: '#1a1a1a', fontSize: '13px' }}></i> Conversation Summary
-            </div>
-            <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#374151', margin: 0, whiteSpace: 'pre-wrap' }}>
-              {String(summary)}
-            </p>
           </div>
         )}
 

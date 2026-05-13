@@ -129,7 +129,7 @@ export function Header({ activeTab, dateRange, onDateRangeChange, onOpenLeadById
 
         <AlertsPanel onOpenLead={onOpenLeadById} />
         <div className="user-info">
-          <div className="user-avatar">MS</div>
+          <div className="user-avatar">HG</div>
           <span style={{ fontSize: '13px', fontWeight: 600 }}>Hugh</span>
         </div>
       </div>
