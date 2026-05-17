@@ -46,7 +46,7 @@ export function DashboardTab({ onOpenLead, dateRange }: DashboardTabProps) {
 
   if (statsLoading || leadsLoading) return <LoadingSpinner />
 
-  const recentLeads = leads.slice(0, 4)
+  const recentLeads = leads.filter(l => (l.ai_score ?? 0) > 0).slice(0, 4)
   const highScoreLeads = leads
     .filter(l => l.ai_score != null && (l.ai_score > 10 ? l.ai_score / 10 : l.ai_score) >= 7)
     .slice(0, 4)

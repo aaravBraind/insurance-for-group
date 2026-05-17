@@ -122,8 +122,9 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
 
   if (isLoading) return <LoadingSpinner />
 
+  const scoredLeads = leads.filter(l => (l.ai_score ?? 0) > 0)
   const filteredLeads = search.trim()
-    ? leads.filter(l => {
+    ? scoredLeads.filter(l => {
         const q = search.toLowerCase()
         return (
           l.contact?.first_name?.toLowerCase().includes(q) ||
@@ -133,7 +134,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
           l.policy?.toLowerCase().includes(q)
         )
       })
-    : leads
+    : scoredLeads
 
   function handleDrop(leadId: string, targetStatus: string) {
     const lead = leads.find(l => l.id === leadId)

@@ -15,8 +15,8 @@ interface ConversationsTabProps {
 function ConversationDetail({ summary, onBack }: { summary: ConversationSummary; onBack: () => void }) {
   const { contact, channel } = summary
   const name = contact
-    ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email || summary.session_id
-    : summary.session_id
+    ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email || 'Unknown'
+    : 'Unknown'
   const channelLabel = channel ? channel.charAt(0).toUpperCase() + channel.slice(1) : 'Unknown'
 
   return (
@@ -30,7 +30,7 @@ function ConversationDetail({ summary, onBack }: { summary: ConversationSummary;
         </div>
         <div>
           <div style={{ fontWeight: 700 }}>{name}</div>
-          <div style={{ fontSize: '13px', color: '#7a8fa0' }}>{summary.session_id} · {channelLabel}</div>
+          <div style={{ fontSize: '13px', color: '#7a8fa0' }}>{contact ? summary.session_id : 'Unknown'} · {channelLabel}</div>
         </div>
       </div>
       <ConversationChat sessionId={summary.session_id} contactName={name} />
@@ -146,8 +146,8 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
           {visible.map(c => {
             const name = c.contact
               ? `${c.contact.first_name ?? ''} ${c.contact.last_name ?? ''}`.trim()
-                || c.contact.phone || c.contact.email || c.session_id
-              : c.session_id
+                || c.contact.phone || c.contact.email || 'Unknown'
+              : 'Unknown'
             const lastText = c.last_message?.content ?? ''
             const dateLabel = new Date(c.last_message_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
             const channelIcon =
@@ -162,7 +162,7 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
             return (
               <tr key={c.session_id} onClick={() => setSelected(c)}>
                 <td><strong>{name}</strong></td>
-                <td>{c.contact?.phone ?? c.contact?.email ?? c.session_id}</td>
+                <td>{c.contact?.phone ?? c.contact?.email ?? 'Unknown'}</td>
                 <td>
                   <span className="channel-badge ch-wa">
                     <i className={channelIcon}></i> {channelLabel}
