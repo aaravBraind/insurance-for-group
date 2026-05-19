@@ -6,6 +6,8 @@ import { LoadingSpinner } from '../shared/LoadingSpinner'
 import { EmptyState } from '../shared/EmptyState'
 import type { Contact, Status, DateRange } from '../../lib/types'
 import type { ContactWithLead } from '../../hooks/useContacts'
+import { ChannelFilter } from '../shared/ChannelFilter'
+import { leadChannel, type Channel } from '../../lib/format'
 
 interface ContactsTabProps {
   dateRange: DateRange
@@ -200,6 +202,7 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
   const { data: contacts = [], isLoading } = useContacts(dateRange)
   const { data: statuses = [] } = useStatuses()
   const [search, setSearch] = useState('')
+  const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all')
   const [convertingContact, setConvertingContact] = useState<Contact | null>(null)
 
   if (isLoading) return <LoadingSpinner />
@@ -207,18 +210,20 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
 
   const filtered = (contacts as ContactWithLead[]).filter(c => {
     const q = search.toLowerCase()
-    return (
+    const matchesSearch =
       !q ||
       c.phone?.toLowerCase().includes(q) ||
       c.first_name?.toLowerCase().includes(q) ||
       c.last_name?.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q)
-    )
+    if (!matchesSearch) return false
+    if (channelFilter !== 'all' && leadChannel(c.origin) !== channelFilter) return false
+    return true
   })
 
   return (
     <>
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search Contacts"
@@ -226,6 +231,7 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
           onChange={e => setSearch(e.target.value)}
           style={{ padding: '10px 16px', border: '1px solid #e0e6ed', borderRadius: '10px', width: '300px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }}
         />
+        <ChannelFilter value={channelFilter} onChange={setChannelFilter} />
       </div>
       <table className="contacts-table">
         <thead>
