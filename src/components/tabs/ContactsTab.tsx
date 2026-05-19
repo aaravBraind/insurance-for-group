@@ -118,7 +118,7 @@ function ConvertToLeadModal({
             <label style={labelStyle}>Policy</label>
             <input
               type="text"
-              placeholder="e.g. corporate_group, landlord, commercial"
+              placeholder="e.g. Corporate Group, Individual Cover, Landlord"
               value={policy}
               onChange={e => setPolicy(e.target.value)}
               style={inputStyle}
@@ -266,7 +266,7 @@ export function ContactsTab({ dateRange }: ContactsTabProps) {
                       {statusObj.label}
                     </span>
                   ) : (
-                    <span className="status-badge st-closed">{leadStatus ?? '—'}</span>
+                    <span className="status-badge st-closed">{leadStatus ? leadStatus.replace(/^ifg_/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—'}</span>
                   )}
                 </td>
                 <td style={{ color: '#7a8fa0', whiteSpace: 'nowrap' }}>

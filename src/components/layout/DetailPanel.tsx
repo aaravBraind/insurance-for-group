@@ -3,6 +3,7 @@ import { useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useFollowupsForLead } from '../../hooks/useFollowups'
 import { ConversationChat } from '../shared/ConversationChat'
 import type { LeadWithContact, Status, FollowupSchedule } from '../../lib/types'
+import { formatPolicy, formatEnum, formatDateTime, toTitleCase } from '../../lib/format'
 
 const STEP_LABEL: Record<FollowupSchedule['next_step'], string> = {
   step_20min: '20-min check-in',
@@ -38,6 +39,7 @@ const LABEL_MAP: Record<string, string> = {
   handoff_sent_at: 'Handoff Sent',
   hugh_notified_at: 'Hugh Notified',
   last_user_message_at: 'Last User Message',
+  captured_via: 'Captured Via',
 }
 
 // Keys we never want to surface in the "Additional Details" grid (internal /
@@ -47,18 +49,12 @@ const HIDDEN_KEYS = new Set<string>([
   'channel_session_id',
 ])
 
-function toTitleCase(key: string) {
-  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
 function formatValue(v: unknown): string {
   if (v === null || v === undefined || v === 'null' || v === '') return '—'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
-  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
-    const d = new Date(v)
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleString('en-IE', { dateStyle: 'medium', timeStyle: 'short' })
-    }
+  if (typeof v === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v)) return formatDateTime(v)
+    return formatEnum(v)
   }
   return String(v)
 }
@@ -260,11 +256,11 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <div style={{ fontSize: '12px', color: '#7a8fa0', marginBottom: '2px' }}>Policy</div>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{lead.policy ?? '—'}</div>
+                <div style={{ fontSize: '13px', fontWeight: 500 }}>{formatPolicy(lead.policy)}</div>
               </div>
               <div>
                 <div style={{ fontSize: '12px', color: '#7a8fa0', marginBottom: '2px' }}>Risk Details</div>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>{lead.risk_details ?? '—'}</div>
+                <div style={{ fontSize: '13px', fontWeight: 500 }}>{formatEnum(lead.risk_details)}</div>
               </div>
             </div>
           </div>

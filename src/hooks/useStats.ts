@@ -21,7 +21,9 @@ export function useStats(dateRange: DateRange | null) {
     queryFn: async () => {
       let leadsQuery = supabase.from('leads').select('*', { count: 'exact', head: true })
       let contactsQuery = supabase.from('contacts').select('*', { count: 'exact', head: true })
-      let convsQuery = supabase.from('sessions').select('*', { count: 'exact', head: true })
+      // One conversation per contact (a message is sent to every contact),
+      // so the conversation count is just the contact count.
+      let convsQuery = supabase.from('contacts').select('*', { count: 'exact', head: true })
       let scoreQuery = supabase.from('leads').select('ai_score').not('ai_score', 'is', null)
       let convertedQuery = supabase
         .from('leads')

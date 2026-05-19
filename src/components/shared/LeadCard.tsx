@@ -1,4 +1,5 @@
 import type { LeadWithContact, Status } from '../../lib/types'
+import { formatPolicy } from '../../lib/format'
 
 interface LeadCardProps {
   lead: LeadWithContact
@@ -29,7 +30,7 @@ export function LeadCard({ lead, statuses, onClick }: LeadCardProps) {
   const fullName = contact
     ? `${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim() || contact.phone || contact.email || 'Unknown'
     : 'Unknown'
-  const subtitle = contact?.phone ?? contact?.email ?? (lead.policy ?? '—')
+  const subtitle = contact?.phone ?? contact?.email ?? formatPolicy(lead.policy)
 
   return (
     <div className="lead-card" onClick={onClick}>

@@ -5,6 +5,8 @@ import { LoadingSpinner } from '../shared/LoadingSpinner'
 import { EmptyState } from '../shared/EmptyState'
 import { ConversationChat } from '../shared/ConversationChat'
 import type { ConversationSummary, DateRange } from '../../lib/types'
+import { CHANNEL_LABEL, type Channel } from '../../lib/format'
+import { ChannelFilter } from '../shared/ChannelFilter'
 
 interface ConversationsTabProps {
   dateRange: DateRange
@@ -59,6 +61,7 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
   const [search, setSearch] = useState('')
   const [minMessages, setMinMessages] = useState(0)
   const [leadFilter, setLeadFilter] = useState<LeadFilter>('all')
+  const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all')
 
   useEffect(() => {
     if (autoOpenSession && conversations.length > 0) {
@@ -92,6 +95,7 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
     const isConverted = c.lead?.status === 'ifg_converted'
     if (leadFilter === 'converted' && !isConverted) return false
     if (leadFilter === 'not_converted' && isConverted) return false
+    if (channelFilter !== 'all' && c.channel !== channelFilter) return false
     return true
   })
 
@@ -128,6 +132,7 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
           <button style={filterBtnStyle(leadFilter === 'converted')} onClick={() => setLeadFilter('converted')}>Converted</button>
           <button style={filterBtnStyle(leadFilter === 'not_converted')} onClick={() => setLeadFilter('not_converted')}>Not Converted</button>
         </div>
+        <ChannelFilter value={channelFilter} onChange={setChannelFilter} />
       </div>
 
       <table className="conv-table">
@@ -155,9 +160,7 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
               c.channel === 'email' ? 'fas fa-envelope' :
               c.channel === 'website' ? 'fas fa-globe' :
               'fas fa-comment'
-            const channelLabel = c.channel
-              ? c.channel.charAt(0).toUpperCase() + c.channel.slice(1)
-              : 'Unknown'
+            const channelLabel = c.channel ? CHANNEL_LABEL[c.channel] : 'Unknown'
 
             return (
               <tr key={c.session_id} onClick={() => setSelected(c)}>
@@ -180,7 +183,7 @@ export function ConversationsTab({ dateRange, autoOpenSession, onAutoOpenHandled
                     const statusObj = statuses.find(s => s.name === leadStatus)
                     const isConverted = leadStatus === 'ifg_converted'
                     if (!statusObj) {
-                      return <span className="status-badge st-closed">{leadStatus}</span>
+                      return <span className="status-badge st-closed">{leadStatus.replace(/^ifg_/, '').replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())}</span>
                     }
                     return (
                       <span

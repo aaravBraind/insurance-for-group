@@ -3,6 +3,8 @@ import { useLeads, useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useStatuses } from '../../hooks/useStatuses'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
 import type { LeadWithContact, Status, DateRange } from '../../lib/types'
+import { formatPolicy, leadChannel, type Channel } from '../../lib/format'
+import { ChannelFilter } from '../shared/ChannelFilter'
 
 interface LeadsTabProps {
   onOpenLead: (lead: LeadWithContact) => void
@@ -97,7 +99,7 @@ function KanbanColumn({ status, leads, onOpenLead, draggingId, dragOverCol, setD
                   </span>
                 )}
               </div>
-              <div className="kc-co">{l.contact?.phone ?? l.contact?.email ?? l.policy ?? '—'}</div>
+              <div className="kc-co">{l.contact?.phone ?? l.contact?.email ?? formatPolicy(l.policy)}</div>
             </div>
           </div>
           <span className="kc-score">{displayScore(l)}</span>
@@ -117,13 +119,14 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
   const { data: statuses = [] } = useStatuses()
   const updateStatus = useUpdateLeadStatus()
   const [search, setSearch] = useState('')
+  const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all')
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
 
   if (isLoading) return <LoadingSpinner />
 
   const scoredLeads = leads.filter(l => (l.ai_score ?? 0) > 0)
-  const filteredLeads = search.trim()
+  const searchedLeads = search.trim()
     ? scoredLeads.filter(l => {
         const q = search.toLowerCase()
         return (
@@ -135,6 +138,9 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
         )
       })
     : scoredLeads
+  const filteredLeads = channelFilter === 'all'
+    ? searchedLeads
+    : searchedLeads.filter(l => leadChannel(l.details?.captured_via as string | undefined) === channelFilter)
 
   function handleDrop(leadId: string, targetStatus: string) {
     const lead = leads.find(l => l.id === leadId)
@@ -145,7 +151,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
 
   return (
     <>
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <input
           type="text"
           placeholder="Search Leads"
@@ -153,6 +159,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
           onChange={e => setSearch(e.target.value)}
           style={{ padding: '10px 16px', border: '1px solid #e0e6ed', borderRadius: '10px', width: '320px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }}
         />
+        <ChannelFilter value={channelFilter} onChange={setChannelFilter} />
       </div>
       <div className="kanban">
         {statuses.map(status => (
