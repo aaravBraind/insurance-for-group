@@ -9,11 +9,16 @@ export interface DashboardStats {
   avgAiScore: number
   conversionRate: number
   convertedLeads: number
+  qualifiedLeads: number
 }
 
 // A lead is considered "converted" when its status equals this value.
 // (The `statuses` table uses the `ifg_converted` row for this.)
 const CONVERTED_STATUS = 'ifg_converted'
+
+// Conversion rate counts contacts that reached this status, to match how the
+// sales team tracks qualified pipeline.
+const QUALIFIED_STATUS = 'ifg_qualified'
 
 export function useStats(dateRange: DateRange | null) {
   return useQuery<DashboardStats>({
@@ -29,6 +34,10 @@ export function useStats(dateRange: DateRange | null) {
         .from('leads')
         .select('*', { count: 'exact', head: true })
         .eq('status', CONVERTED_STATUS)
+      let qualifiedQuery = supabase
+        .from('leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', QUALIFIED_STATUS)
 
       if (dateRange) {
         const startGte = dateRange.start
@@ -38,14 +47,16 @@ export function useStats(dateRange: DateRange | null) {
         convsQuery = convsQuery.gte('created_at', startGte).lte('created_at', endLte)
         scoreQuery = scoreQuery.gte('created_at', startGte).lte('created_at', endLte)
         convertedQuery = convertedQuery.gte('created_at', startGte).lte('created_at', endLte)
+        qualifiedQuery = qualifiedQuery.gte('created_at', startGte).lte('created_at', endLte)
       }
 
-      const [leadsRes, contactsRes, convsRes, scoreRes, convertedRes] = await Promise.all([
+      const [leadsRes, contactsRes, convsRes, scoreRes, convertedRes, qualifiedRes] = await Promise.all([
         leadsQuery,
         contactsQuery,
         convsQuery,
         scoreQuery,
         convertedQuery,
+        qualifiedQuery,
       ])
 
       const totalLeads = leadsRes.count ?? 0
@@ -63,11 +74,10 @@ export function useStats(dateRange: DateRange | null) {
         ? Math.round((avgRaw > 10 ? avgRaw / 10 : avgRaw) * 10) / 10
         : 0
 
-      // Conversion rate = leads that reached `ifg_converted` ÷ total leads.
-      // (Previous version was leads ÷ contacts which is ~100% by design,
-      // because Ivy creates a lead row for every contact.)
+      // Conversion rate = qualified leads ÷ total leads.
+      const qualifiedLeads = qualifiedRes.count ?? 0
       const conversionRate = totalLeads > 0
-        ? Math.round((convertedLeads / totalLeads) * 100)
+        ? Math.round((qualifiedLeads / totalLeads) * 100)
         : 0
 
       return {
@@ -77,6 +87,7 @@ export function useStats(dateRange: DateRange | null) {
         avgAiScore,
         conversionRate,
         convertedLeads,
+        qualifiedLeads,
       }
     },
     refetchInterval: 1000 * 30,

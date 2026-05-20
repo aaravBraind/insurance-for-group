@@ -60,11 +60,11 @@ export function DashboardTab({ onOpenLead, dateRange }: DashboardTabProps) {
         <StatCard value={stats?.avgAiScore?.toFixed(1) ?? '—'} label="Avg AI Score" />
         <StatCard
           value={`${stats?.conversionRate ?? 0}%`}
-          label={`Conversion Rate (${stats?.convertedLeads ?? 0}/${stats?.totalLeads ?? 0})`}
+          label={`Conversion Rate (${stats?.qualifiedLeads ?? 0}/${stats?.totalLeads ?? 0})`}
         />
       </div>
 
-      <LeadStatusChart leads={leads} statuses={statuses} />
+      <LeadStatusChart leads={leads.filter(l => (l.ai_score ?? 0) > 0)} statuses={statuses} />
 
       {recentLeads.length > 0 && (
         <>
