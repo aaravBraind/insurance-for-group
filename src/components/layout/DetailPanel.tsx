@@ -236,7 +236,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
         )}
 
         {/* Policy / Risk */}
-        {(lead.policy || lead.risk_details || lead.origin || lead.details?.captured_via) && (
+        {(lead.policy || lead.risk_details || lead.origin || (lead.details?.captured_via as string | undefined)) && (
           <div className="lead-modal-section">
             <div className="lead-modal-section-title">
               <i className="fas fa-shield-alt" style={{ color: '#0A8754', fontSize: '13px' }}></i> Policy
