@@ -5,6 +5,7 @@ import { LoadingSpinner } from '../shared/LoadingSpinner'
 import type { LeadWithContact, Status, DateRange } from '../../lib/types'
 import { formatPolicy, leadChannel, type Channel } from '../../lib/format'
 import { ChannelFilter } from '../shared/ChannelFilter'
+import { LeadConversationsModal } from '../shared/LeadConversationsModal'
 
 interface LeadsTabProps {
   onOpenLead: (lead: LeadWithContact) => void
@@ -15,6 +16,7 @@ interface KanbanColumnProps {
   status: Status
   leads: LeadWithContact[]
   onOpenLead: (l: LeadWithContact) => void
+  onOpenConversation: (lead: LeadWithContact, channel: Channel | null) => void
   draggingId: string | null
   dragOverCol: string | null
   setDraggingId: (id: string | null) => void
@@ -34,7 +36,7 @@ function getAvatarColor(id: string) {
   return colors[Math.abs(hash) % colors.length]
 }
 
-function KanbanColumn({ status, leads, onOpenLead, draggingId, dragOverCol, setDraggingId, setDragOverCol, onDrop }: KanbanColumnProps) {
+function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, draggingId, dragOverCol, setDraggingId, setDragOverCol, onDrop }: KanbanColumnProps) {
   const displayScore = (l: LeadWithContact) =>
     l.ai_score != null ? (l.ai_score > 10 ? (l.ai_score / 10).toFixed(1) : l.ai_score.toFixed(1)) : '—'
 
@@ -102,7 +104,23 @@ function KanbanColumn({ status, leads, onOpenLead, draggingId, dragOverCol, setD
               <div className="kc-co">{l.contact?.phone ?? l.contact?.email ?? formatPolicy(l.policy)}</div>
             </div>
           </div>
-          <span className="kc-score">{displayScore(l)}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <span className="kc-score">{displayScore(l)}</span>
+            <button
+              type="button"
+              title="View conversations"
+              onClick={e => { e.stopPropagation(); onOpenConversation(l, null) }}
+              onMouseDown={e => e.stopPropagation()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: '26px', height: '26px', borderRadius: '50%',
+                border: '1px solid #e0e6ed', background: 'white',
+                cursor: 'pointer', padding: 0,
+              }}
+            >
+              <i className="fas fa-comments" style={{ fontSize: '11px', color: '#0A8754' }} />
+            </button>
+          </div>
         </div>
       ))}
       {leads.length === 0 && (
@@ -122,6 +140,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
   const [channelFilter, setChannelFilter] = useState<Channel | 'all'>('all')
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
+  const [convLead, setConvLead] = useState<{ lead: LeadWithContact; channel: Channel | null } | null>(null)
 
   if (isLoading) return <LoadingSpinner />
 
@@ -168,6 +187,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
             status={status}
             leads={filteredLeads.filter(l => l.status === status.name)}
             onOpenLead={onOpenLead}
+            onOpenConversation={(lead, channel) => setConvLead({ lead, channel })}
             draggingId={draggingId}
             dragOverCol={dragOverCol}
             setDraggingId={setDraggingId}
@@ -176,6 +196,13 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
           />
         ))}
       </div>
+      {convLead && (
+        <LeadConversationsModal
+          lead={convLead.lead}
+          initialChannel={convLead.channel}
+          onClose={() => setConvLead(null)}
+        />
+      )}
     </>
   )
 }

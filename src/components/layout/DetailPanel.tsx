@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useFollowupsForLead } from '../../hooks/useFollowups'
-import { ConversationChat } from '../shared/ConversationChat'
+import { useLeadSessions } from '../../hooks/useConversations'
+import { LeadConversationsModal } from '../shared/LeadConversationsModal'
 import type { LeadWithContact, Status, FollowupSchedule } from '../../lib/types'
-import { formatPolicy, formatEnum, formatDateTime, toTitleCase } from '../../lib/format'
+import { formatPolicy, formatEnum, formatDateTime, formatCapturedVia, toTitleCase } from '../../lib/format'
 
 const STEP_LABEL: Record<FollowupSchedule['next_step'], string> = {
   step_20min: '20-min check-in',
@@ -26,28 +27,33 @@ interface DetailPanelProps {
   onViewConversation: (sessionId: string) => void
 }
 
-// Labels for the keys Ivy / Hugh write into leads.details.
+// Keys to surface in the "Additional Details" grid — the qualification
+// answers Ivy collects. Everything else (handoff timestamps, channel ids,
+// thread ids, etc.) is internal noise and hidden.
+const VISIBLE_DETAIL_KEYS = [
+  'purpose',
+  'duration',
+  'org_type',
+  'destination',
+  'organisation',
+  'channel_preference',
+  'last_user_message_at',
+] as const
+
+// Human-readable names for known follow-up cancellation reasons.
+const CANCEL_REASON_LABEL: Record<string, string> = {
+  lead_qualified_hugh_notified: 'Lead Qualified',
+}
+
 const LABEL_MAP: Record<string, string> = {
-  stage: 'Stage',
   purpose: 'Purpose',
   duration: 'Duration',
   org_type: 'Organisation Type',
   destination: 'Destination',
-  is_returning: 'Returning Customer',
   organisation: 'Organisation',
   channel_preference: 'Channel Preference',
-  handoff_sent_at: 'Handoff Sent',
-  hugh_notified_at: 'Hugh Notified',
   last_user_message_at: 'Last User Message',
-  captured_via: 'Captured Via',
 }
-
-// Keys we never want to surface in the "Additional Details" grid (internal /
-// shown elsewhere on the panel).
-const HIDDEN_KEYS = new Set<string>([
-  'conversation_summary',
-  'channel_session_id',
-])
 
 function formatValue(v: unknown): string {
   if (v === null || v === undefined || v === 'null' || v === '') return '—'
@@ -101,9 +107,9 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
     : null
 
   const detailEntries = lead.details
-    ? Object.entries(lead.details).filter(([k, v]) =>
-        !HIDDEN_KEYS.has(k) && v !== null && v !== undefined && v !== '' && v !== 'unknown'
-      )
+    ? VISIBLE_DETAIL_KEYS
+        .map(k => [k, (lead.details as Record<string, unknown>)[k]] as const)
+        .filter(([, v]) => v !== null && v !== undefined && v !== '' && v !== 'unknown')
     : []
 
   function handleStatusChange(newStatus: string) {
@@ -111,33 +117,14 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
     updateStatus.mutate({ leadId: lead!.id, status: newStatus })
   }
 
-  const contactName = contact
-    ? (`${contact.first_name ?? ''} ${contact.last_name ?? ''}`.trim()
-        || contact.phone || contact.email || 'Unknown')
-    : 'Unknown'
+  // A lead can have conversations either via its own `session_id` OR via
+  // rows in the `sessions` table that point back to it by `lead_id`.
+  // Show the View Conversation button whenever at least one exists.
+  const { data: leadSessions = [] } = useLeadSessions(lead.id, lead.session_id ?? null)
+  const hasConversation = leadSessions.length > 0
 
-  // session_id lives on the lead itself; fall back to nothing if absent.
-  const sessionId = lead.session_id ?? null
-
-  if (convOpen && sessionId) {
-    return (
-      <div className="lead-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConvOpen(false) }}>
-        <div className="lead-modal">
-          <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #e0e6ed' }}>
-            <button
-              onClick={() => setConvOpen(false)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: '1px solid #e0e6ed', background: 'white', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}
-            >
-              <i className="fas fa-arrow-left" style={{ fontSize: '11px' }}></i> Back to Lead
-            </button>
-            <span style={{ fontWeight: 700, fontSize: '14px', color: '#1a1a1a' }}>{contactName} · Conversation</span>
-          </div>
-          <div style={{ padding: '0 16px 16px' }}>
-            <ConversationChat sessionId={sessionId} contactName={contactName} />
-          </div>
-        </div>
-      </div>
-    )
+  if (convOpen && hasConversation) {
+    return <LeadConversationsModal lead={lead} onClose={() => setConvOpen(false)} />
   }
 
   return (
@@ -207,12 +194,13 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
                 </div>
               )}
             </div>
-            {sessionId && (
+            {hasConversation && (
               <button
                 onClick={() => setConvOpen(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: '1.5px solid #e0e6ed', background: 'white', fontFamily: 'inherit', fontSize: '13px', fontWeight: 600, color: '#1a1a1a', cursor: 'pointer' }}
               >
-                <i className="fas fa-comments" style={{ fontSize: '12px' }}></i> View Conversation
+                <i className="fas fa-comments" style={{ fontSize: '12px' }}></i>
+                View Conversation{leadSessions.length > 1 ? `s (${leadSessions.length})` : ''}
               </button>
             )}
           </div>
@@ -248,7 +236,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
         )}
 
         {/* Policy / Risk */}
-        {(lead.policy || lead.risk_details) && (
+        {(lead.policy || lead.risk_details || lead.origin || lead.details?.captured_via) && (
           <div className="lead-modal-section">
             <div className="lead-modal-section-title">
               <i className="fas fa-shield-alt" style={{ color: '#0A8754', fontSize: '13px' }}></i> Policy
@@ -262,6 +250,14 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
                 <div style={{ fontSize: '12px', color: '#7a8fa0', marginBottom: '2px' }}>Risk Details</div>
                 <div style={{ fontSize: '13px', fontWeight: 500 }}>{formatEnum(lead.risk_details)}</div>
               </div>
+              {formatCapturedVia(lead.details?.captured_via as string | undefined, lead.origin) && (
+                <div>
+                  <div style={{ fontSize: '12px', color: '#7a8fa0', marginBottom: '2px' }}>Captured Via</div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                    {formatCapturedVia(lead.details?.captured_via as string | undefined, lead.origin)}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -377,7 +373,7 @@ export function DetailPanel({ lead, statuses, onClose }: DetailPanelProps) {
                       </div>
                       {f.cancelled_at && f.cancelled_reason && (
                         <div style={{ fontSize: '12px', color: '#EF4444', marginTop: '4px', lineHeight: 1.4 }}>
-                          Reason: {f.cancelled_reason}
+                          Reason: {CANCEL_REASON_LABEL[f.cancelled_reason] ?? formatEnum(f.cancelled_reason)}
                         </div>
                       )}
                       {f.completed_at && (

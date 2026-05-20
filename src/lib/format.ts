@@ -45,6 +45,27 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   email: 'Email',
 }
 
+// Friendly display for how a lead reached us. Prefers
+// `lead.details.captured_via` (e.g. "website_chat"), falls back to the
+// `leads.origin` column (e.g. "website", "email_inbound", "manual").
+const CAPTURED_VIA_LABEL: Record<string, string> = {
+  website_chat: 'Website Chat',
+  website: 'Website Chat',
+  email_inbound: 'Email',
+  email: 'Email',
+  whatsapp: 'WhatsApp',
+  manual: 'Manual',
+  automated: 'Automated',
+  corporate_inquiry: 'Corporate Inquiry Form',
+  'insuranceforgroup.com': 'Website',
+}
+
+export function formatCapturedVia(capturedVia: string | null | undefined, origin: string | null | undefined): string | null {
+  const raw = (capturedVia ?? origin ?? '').trim()
+  if (!raw) return null
+  return CAPTURED_VIA_LABEL[raw.toLowerCase()] ?? toTitleCase(raw)
+}
+
 export function formatDateTime(v: string | null | undefined): string {
   if (!v) return '—'
   if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v)) return v

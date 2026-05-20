@@ -110,6 +110,103 @@ export function useConversations(dateRange: DateRange | null) {
   })
 }
 
+/**
+ * All sessions tied to a single lead, with the channel + message count for
+ * each. Pulled from both `sessions.lead_id = leadId` and the lead's own
+ * `session_id` field (some manual leads don't have a row in `sessions`).
+ */
+export interface LeadSessionInfo {
+  session_id: string
+  channel: 'website' | 'whatsapp' | 'email' | null
+  message_count: number
+  last_message_at: string | null
+}
+
+export function useLeadSessions(leadId: string | null, leadSessionId: string | null) {
+  return useQuery<LeadSessionInfo[]>({
+    queryKey: ['lead-sessions', leadId, leadSessionId],
+    queryFn: async () => {
+      const sessionIds = new Set<string>()
+
+      if (leadId) {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select('session_id')
+          .eq('lead_id', leadId)
+        if (error) throw error
+        for (const s of data ?? []) sessionIds.add(s.session_id)
+      }
+      if (leadSessionId) sessionIds.add(leadSessionId)
+      if (sessionIds.size === 0) return []
+
+      const ids = Array.from(sessionIds)
+      const { data: convs, error: convError } = await supabase
+        .from('conversations')
+        .select('session_id, channel, created_at')
+        .in('session_id', ids)
+      if (convError) throw convError
+
+      const map = new Map<string, LeadSessionInfo>()
+      for (const id of ids) {
+        map.set(id, { session_id: id, channel: null, message_count: 0, last_message_at: null })
+      }
+      for (const c of (convs ?? []) as Array<{ session_id: string; channel: LeadSessionInfo['channel']; created_at: string }>) {
+        const cur = map.get(c.session_id)!
+        cur.message_count += 1
+        if (!cur.channel && c.channel) cur.channel = c.channel
+        if (!cur.last_message_at || c.created_at > cur.last_message_at) cur.last_message_at = c.created_at
+      }
+      return Array.from(map.values()).sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? ''))
+    },
+    enabled: !!(leadId || leadSessionId),
+  })
+}
+
+/**
+ * Map of lead.id → list of channels this lead has any conversation in.
+ * Used by the kanban so each lead card can show per-channel chat buttons.
+ */
+export function useLeadChannelsMap() {
+  return useQuery<Record<string, ('website' | 'whatsapp' | 'email')[]>>({
+    queryKey: ['lead-channels-map'],
+    queryFn: async () => {
+      const { data: sess, error: sessErr } = await supabase
+        .from('sessions')
+        .select('lead_id, session_id')
+        .not('lead_id', 'is', null)
+      if (sessErr) throw sessErr
+
+      const sessionToLead = new Map<string, string>()
+      const sessionIds: string[] = []
+      for (const s of (sess ?? []) as Array<{ lead_id: string; session_id: string }>) {
+        sessionToLead.set(s.session_id, s.lead_id)
+        sessionIds.push(s.session_id)
+      }
+      if (sessionIds.length === 0) return {}
+
+      const { data: convs, error: convErr } = await supabase
+        .from('conversations')
+        .select('session_id, channel')
+        .in('session_id', sessionIds)
+      if (convErr) throw convErr
+
+      const result: Record<string, Set<'website' | 'whatsapp' | 'email'>> = {}
+      for (const c of (convs ?? []) as Array<{ session_id: string; channel: 'website' | 'whatsapp' | 'email' | null }>) {
+        if (!c.channel) continue
+        const leadId = sessionToLead.get(c.session_id)
+        if (!leadId) continue
+        const set = result[leadId] ?? new Set()
+        set.add(c.channel)
+        result[leadId] = set
+      }
+      const out: Record<string, ('website' | 'whatsapp' | 'email')[]> = {}
+      for (const [k, v] of Object.entries(result)) out[k] = Array.from(v)
+      return out
+    },
+    refetchInterval: 1000 * 60,
+  })
+}
+
 export function useConversationMessages(sessionId: string | null) {
   return useQuery<Conversation[]>({
     queryKey: ['conversation-messages', sessionId],
