@@ -26,9 +26,10 @@ export function useStats(dateRange: DateRange | null) {
     queryFn: async () => {
       let leadsQuery = supabase.from('leads').select('*', { count: 'exact', head: true })
       let contactsQuery = supabase.from('contacts').select('*', { count: 'exact', head: true })
-      // One conversation per contact (a message is sent to every contact),
-      // so the conversation count is just the contact count.
-      let convsQuery = supabase.from('contacts').select('*', { count: 'exact', head: true })
+      // Number of distinct chat threads = distinct session_id values in
+      // public.conversations. Read straight off the conversations table so we
+      // don't depend on the sessions table for the count.
+      let convsQuery = supabase.from('conversations').select('session_id')
       let scoreQuery = supabase.from('leads').select('ai_score').not('ai_score', 'is', null)
       let convertedQuery = supabase
         .from('leads')
@@ -61,7 +62,9 @@ export function useStats(dateRange: DateRange | null) {
 
       const totalLeads = leadsRes.count ?? 0
       const totalContacts = contactsRes.count ?? 0
-      const totalConversations = convsRes.count ?? 0
+      const totalConversations = new Set(
+        ((convsRes.data ?? []) as Array<{ session_id: string }>).map(r => r.session_id),
+      ).size
       const convertedLeads = convertedRes.count ?? 0
 
       const scores = (scoreRes.data ?? []).map(r => r.ai_score as number)
