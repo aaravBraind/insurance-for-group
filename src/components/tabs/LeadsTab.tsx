@@ -3,9 +3,10 @@ import { useLeads, useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useStatuses } from '../../hooks/useStatuses'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
 import type { LeadWithContact, Status, DateRange } from '../../lib/types'
-import { formatPolicy, leadChannel, type Channel } from '../../lib/format'
+import { formatPolicy, type Channel } from '../../lib/format'
 import { ChannelFilter } from '../shared/ChannelFilter'
 import { LeadConversationsModal } from '../shared/LeadConversationsModal'
+import { useLeadChannelsMap } from '../../hooks/useConversations'
 
 interface LeadsTabProps {
   onOpenLead: (lead: LeadWithContact) => void
@@ -134,6 +135,7 @@ function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, draggingI
 
 export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
   const { data: leads = [], isLoading } = useLeads(dateRange)
+  const { data: leadChannelsMap = {} } = useLeadChannelsMap()
   const { data: statuses = [] } = useStatuses()
   const updateStatus = useUpdateLeadStatus()
   const [search, setSearch] = useState('')
@@ -159,7 +161,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
     : scoredLeads
   const filteredLeads = channelFilter === 'all'
     ? searchedLeads
-    : searchedLeads.filter(l => leadChannel(l.details?.captured_via as string | undefined) === channelFilter)
+    : searchedLeads.filter(l => (leadChannelsMap[l.id] ?? []).includes(channelFilter))
 
   function handleDrop(leadId: string, targetStatus: string) {
     const lead = leads.find(l => l.id === leadId)
