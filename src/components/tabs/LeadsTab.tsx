@@ -253,6 +253,13 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
         />
         <ChannelFilter value={channelFilter} onChange={setChannelFilter} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            onClick={() => setPreset(null)}
+            style={presetBtnStyle(preset === null)}
+          >
+            All
+          </button>
           {DATE_PRESETS.map(p => (
             <button
               key={p.key}
