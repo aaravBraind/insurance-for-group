@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useLeads, useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useStatuses } from '../../hooks/useStatuses'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
@@ -7,6 +7,9 @@ import { formatPolicy, type Channel } from '../../lib/format'
 import { ChannelFilter } from '../shared/ChannelFilter'
 import { LeadConversationsModal } from '../shared/LeadConversationsModal'
 import { useLeadChannelsMap } from '../../hooks/useConversations'
+
+// Leads moved here are dropped into the "Not Responded (Archived)" column.
+const ARCHIVED_STATUS = 'ifg_archived'
 
 interface LeadsTabProps {
   onOpenLead: (lead: LeadWithContact) => void
@@ -18,6 +21,7 @@ interface KanbanColumnProps {
   leads: LeadWithContact[]
   onOpenLead: (l: LeadWithContact) => void
   onOpenConversation: (lead: LeadWithContact, channel: Channel | null) => void
+  onArchive: (lead: LeadWithContact) => void
   draggingId: string | null
   dragOverCol: string | null
   setDraggingId: (id: string | null) => void
@@ -37,7 +41,8 @@ function getAvatarColor(id: string) {
   return colors[Math.abs(hash) % colors.length]
 }
 
-function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, draggingId, dragOverCol, setDraggingId, setDragOverCol, onDrop }: KanbanColumnProps) {
+function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, onArchive, draggingId, dragOverCol, setDraggingId, setDragOverCol, onDrop }: KanbanColumnProps) {
+  const isArchivedColumn = status.name === ARCHIVED_STATUS
   const displayScore = (l: LeadWithContact) =>
     l.ai_score != null ? (l.ai_score > 10 ? (l.ai_score / 10).toFixed(1) : l.ai_score.toFixed(1)) : '—'
 
@@ -107,20 +112,38 @@ function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, draggingI
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
             <span className="kc-score">{displayScore(l)}</span>
-            <button
-              type="button"
-              title="View conversations"
-              onClick={e => { e.stopPropagation(); onOpenConversation(l, null) }}
-              onMouseDown={e => e.stopPropagation()}
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: '26px', height: '26px', borderRadius: '50%',
-                border: '1px solid #e0e6ed', background: 'white',
-                cursor: 'pointer', padding: 0,
-              }}
-            >
-              <i className="fas fa-comments" style={{ fontSize: '11px', color: '#0A8754' }} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                title="View conversations"
+                onClick={e => { e.stopPropagation(); onOpenConversation(l, null) }}
+                onMouseDown={e => e.stopPropagation()}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: '26px', height: '26px', borderRadius: '50%',
+                  border: '1px solid #e0e6ed', background: 'white',
+                  cursor: 'pointer', padding: 0,
+                }}
+              >
+                <i className="fas fa-comments" style={{ fontSize: '11px', color: '#0A8754' }} />
+              </button>
+              {!isArchivedColumn && (
+                <button
+                  type="button"
+                  title="Archive (move to Not Responded)"
+                  onClick={e => { e.stopPropagation(); onArchive(l) }}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: '26px', height: '26px', borderRadius: '50%',
+                    border: '1px solid #e0e6ed', background: 'white',
+                    cursor: 'pointer', padding: 0,
+                  }}
+                >
+                  <i className="fas fa-box-archive" style={{ fontSize: '11px', color: '#7a8fa0' }} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ))}
@@ -133,8 +156,42 @@ function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, draggingI
   )
 }
 
+type DatePreset = 'today' | 'last3' | 'last7' | 'month'
+
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'last3', label: 'Last 3 Days' },
+  { key: 'last7', label: 'Last 7 Days' },
+  { key: 'month', label: 'This Month' },
+]
+
+function toISO(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Translate a quick preset into a concrete {start, end} range. Returns null
+// for the "All" case so the caller falls back to the global header range.
+function presetToRange(preset: DatePreset | null): DateRange | null {
+  if (!preset) return null
+  const now = new Date()
+  const end = toISO(now)
+  if (preset === 'today') return { start: end, end }
+  if (preset === 'last3') {
+    const s = new Date(now); s.setDate(s.getDate() - 2)
+    return { start: toISO(s), end }
+  }
+  if (preset === 'last7') {
+    const s = new Date(now); s.setDate(s.getDate() - 6)
+    return { start: toISO(s), end }
+  }
+  // 'month' → first day of the current month through today
+  return { start: toISO(new Date(now.getFullYear(), now.getMonth(), 1)), end }
+}
+
 export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
-  const { data: leads = [], isLoading } = useLeads(dateRange)
+  const [preset, setPreset] = useState<DatePreset | null>(null)
+  const effectiveRange = presetToRange(preset) ?? dateRange
+  const { data: leads = [], isLoading } = useLeads(effectiveRange)
   const { data: leadChannelsMap = {} } = useLeadChannelsMap()
   const { data: statuses = [] } = useStatuses()
   const updateStatus = useUpdateLeadStatus()
@@ -170,6 +227,20 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
     }
   }
 
+  function handleArchive(lead: LeadWithContact) {
+    if (lead.status !== ARCHIVED_STATUS) {
+      updateStatus.mutate({ leadId: lead.id, status: ARCHIVED_STATUS })
+    }
+  }
+
+  const presetBtnStyle = (active: boolean): CSSProperties => ({
+    padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+    fontFamily: 'inherit', fontSize: '13px', fontWeight: 500,
+    border: active ? '1px solid #0A8754' : '1px solid #e0e6ed',
+    background: active ? '#f0fdf4' : '#fff',
+    color: active ? '#0A8754' : '#7a8fa0', whiteSpace: 'nowrap',
+  })
+
   return (
     <>
       <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -181,6 +252,18 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
           style={{ padding: '10px 16px', border: '1px solid #e0e6ed', borderRadius: '10px', width: '320px', fontFamily: 'inherit', fontSize: '14px', outline: 'none' }}
         />
         <ChannelFilter value={channelFilter} onChange={setChannelFilter} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {DATE_PRESETS.map(p => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPreset(prev => (prev === p.key ? null : p.key))}
+              style={presetBtnStyle(preset === p.key)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="kanban">
         {statuses.map(status => (
@@ -190,6 +273,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
             leads={filteredLeads.filter(l => l.status === status.name)}
             onOpenLead={onOpenLead}
             onOpenConversation={(lead, channel) => setConvLead({ lead, channel })}
+            onArchive={handleArchive}
             draggingId={draggingId}
             dragOverCol={dragOverCol}
             setDraggingId={setDraggingId}
