@@ -3,10 +3,9 @@ import { useLeads, useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useStatuses } from '../../hooks/useStatuses'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
 import type { LeadWithContact, Status, DateRange } from '../../lib/types'
-import { formatPolicy, formatCapturedVia, type Channel } from '../../lib/format'
+import { formatPolicy, formatCapturedVia, leadChannel, type Channel } from '../../lib/format'
 import { ChannelFilter } from '../shared/ChannelFilter'
 import { LeadConversationsModal } from '../shared/LeadConversationsModal'
-import { useLeadChannelsMap } from '../../hooks/useConversations'
 
 // Leads moved here are dropped into the "Not Responded (Archived)" column.
 const ARCHIVED_STATUS = 'ifg_archived'
@@ -204,7 +203,6 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
   const [preset, setPreset] = useState<DatePreset | null>(null)
   const effectiveRange = presetToRange(preset) ?? dateRange
   const { data: leads = [], isLoading } = useLeads(effectiveRange)
-  const { data: leadChannelsMap = {} } = useLeadChannelsMap()
   const { data: statuses = [] } = useStatuses()
   const updateStatus = useUpdateLeadStatus()
   const [search, setSearch] = useState('')
@@ -229,7 +227,9 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
     : leads
   const filteredLeads = channelFilter === 'all'
     ? searchedLeads
-    : searchedLeads.filter(l => (leadChannelsMap[l.id] ?? []).includes(channelFilter))
+    : searchedLeads.filter(
+        l => leadChannel(l.details?.channel_preference as string | undefined) === channelFilter
+      )
 
   // New Leads shows every matching lead; all other columns stay gated to
   // leads the AI has scored (> 0).
