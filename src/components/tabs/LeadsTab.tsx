@@ -3,13 +3,16 @@ import { useLeads, useUpdateLeadStatus } from '../../hooks/useLeads'
 import { useStatuses } from '../../hooks/useStatuses'
 import { LoadingSpinner } from '../shared/LoadingSpinner'
 import type { LeadWithContact, Status, DateRange } from '../../lib/types'
-import { formatPolicy, type Channel } from '../../lib/format'
+import { formatPolicy, formatCapturedVia, type Channel } from '../../lib/format'
 import { ChannelFilter } from '../shared/ChannelFilter'
 import { LeadConversationsModal } from '../shared/LeadConversationsModal'
 import { useLeadChannelsMap } from '../../hooks/useConversations'
 
 // Leads moved here are dropped into the "Not Responded (Archived)" column.
 const ARCHIVED_STATUS = 'ifg_archived'
+// The "New Leads" column shows every lead regardless of AI score; all other
+// columns are gated to leads the AI has actually scored.
+const NEW_LEAD_STATUS = 'ifg_new_lead'
 
 interface LeadsTabProps {
   onOpenLead: (lead: LeadWithContact) => void
@@ -110,6 +113,15 @@ function KanbanColumn({ status, leads, onOpenLead, onOpenConversation, onArchive
               <div className="kc-co">{l.contact?.phone ?? l.contact?.email ?? formatPolicy(l.policy)}</div>
             </div>
           </div>
+          {(() => {
+            const source = formatCapturedVia(l.details?.captured_via as string | undefined, l.origin)
+            return source ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', fontSize: '11px', color: '#7a8fa0' }}>
+                <i className="fas fa-location-arrow" style={{ fontSize: '9px' }} />
+                <span>via {source}</span>
+              </div>
+            ) : null
+          })()}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
             <span className="kc-score">{displayScore(l)}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -203,9 +215,8 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
 
   if (isLoading) return <LoadingSpinner />
 
-  const scoredLeads = leads.filter(l => (l.ai_score ?? 0) > 0)
   const searchedLeads = search.trim()
-    ? scoredLeads.filter(l => {
+    ? leads.filter(l => {
         const q = search.toLowerCase()
         return (
           l.contact?.first_name?.toLowerCase().includes(q) ||
@@ -215,10 +226,17 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
           l.policy?.toLowerCase().includes(q)
         )
       })
-    : scoredLeads
+    : leads
   const filteredLeads = channelFilter === 'all'
     ? searchedLeads
     : searchedLeads.filter(l => (leadChannelsMap[l.id] ?? []).includes(channelFilter))
+
+  // New Leads shows every matching lead; all other columns stay gated to
+  // leads the AI has scored (> 0).
+  const leadsForColumn = (statusName: string) =>
+    filteredLeads.filter(
+      l => l.status === statusName && (statusName === NEW_LEAD_STATUS || (l.ai_score ?? 0) > 0)
+    )
 
   function handleDrop(leadId: string, targetStatus: string) {
     const lead = leads.find(l => l.id === leadId)
@@ -277,7 +295,7 @@ export function LeadsTab({ onOpenLead, dateRange }: LeadsTabProps) {
           <KanbanColumn
             key={status.name}
             status={status}
-            leads={filteredLeads.filter(l => l.status === status.name)}
+            leads={leadsForColumn(status.name)}
             onOpenLead={onOpenLead}
             onOpenConversation={(lead, channel) => setConvLead({ lead, channel })}
             onArchive={handleArchive}
