@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import type {
   Conversation,
+  ConversationChannel,
   Contact,
   Lead,
   ConversationSummary,
@@ -204,6 +205,49 @@ export function useLeadChannelsMap() {
       return out
     },
     refetchInterval: 1000 * 60,
+  })
+}
+
+/**
+ * Breakdown of conversation threads (distinct session_ids) by channel:
+ *   Website Chat     = channel "website"
+ *   Insure Your Team = channel "email" + "whatsapp"
+ * Read straight off conversations.channel — no join needed.
+ */
+export interface ConversationSourceCounts {
+  website: number
+  insureYourTeam: number
+  total: number
+}
+
+export function useConversationSources(dateRange: DateRange | null) {
+  return useQuery<ConversationSourceCounts>({
+    queryKey: ['conversation-sources', dateRange],
+    queryFn: async () => {
+      let query = supabase.from('conversations').select('session_id, channel, created_at')
+      if (dateRange) {
+        query = query
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end + 'T23:59:59')
+      }
+      const { data: convs, error } = await query
+      if (error) throw error
+
+      // One channel per session_id (first row seen wins).
+      const sessionChannel = new Map<string, ConversationChannel>()
+      for (const c of (convs ?? []) as Array<{ session_id: string; channel: ConversationChannel }>) {
+        if (!sessionChannel.has(c.session_id)) sessionChannel.set(c.session_id, c.channel)
+      }
+
+      const counts: ConversationSourceCounts = { website: 0, insureYourTeam: 0, total: 0 }
+      for (const channel of sessionChannel.values()) {
+        counts.total += 1
+        if (channel === 'website') counts.website += 1
+        else if (channel === 'email' || channel === 'whatsapp') counts.insureYourTeam += 1
+      }
+      return counts
+    },
+    refetchInterval: 1000 * 30,
   })
 }
 

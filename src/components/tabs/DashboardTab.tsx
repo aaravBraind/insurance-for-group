@@ -1,4 +1,5 @@
 import { useStats } from '../../hooks/useStats'
+import { useConversationSources } from '../../hooks/useConversations'
 import { useLeads } from '../../hooks/useLeads'
 import { useStatuses } from '../../hooks/useStatuses'
 import { StatCard } from '../shared/StatCard'
@@ -42,6 +43,7 @@ function LeadStatusChart({ leads, statuses }: { leads: LeadWithContact[]; status
 export function DashboardTab({ onOpenLead, dateRange }: DashboardTabProps) {
   const { data: stats, isLoading: statsLoading } = useStats(dateRange)
   const { data: leads = [], isLoading: leadsLoading } = useLeads(dateRange)
+  const { data: convSources } = useConversationSources(dateRange)
   const { data: statuses = [] } = useStatuses()
 
   if (statsLoading || leadsLoading) return <LoadingSpinner />
@@ -56,7 +58,23 @@ export function DashboardTab({ onOpenLead, dateRange }: DashboardTabProps) {
       <div className="stats-grid">
         <StatCard value={stats?.totalLeads ?? 0} label="Total Leads" />
         <StatCard value={stats?.totalContacts ?? 0} label="Total Contacts" />
-        <StatCard value={stats?.totalConversations ?? 0} label="Conversations" />
+        <StatCard
+          value={stats?.totalConversations ?? 0}
+          label="Conversations"
+          info={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ fontWeight: 700, marginBottom: '2px' }}>Conversations by source</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+                <span>Website Chat</span>
+                <strong>{convSources?.website ?? 0}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+                <span>Insure Your Team</span>
+                <strong>{convSources?.insureYourTeam ?? 0}</strong>
+              </div>
+            </div>
+          }
+        />
         <StatCard value={stats?.avgAiScore?.toFixed(1) ?? '—'} label="Avg AI Score" />
         <StatCard
           value={`${stats?.conversionRate ?? 0}%`}
