@@ -1,8 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useConversationMessages } from '../../hooks/useConversations'
 import { useTranslateMessages } from '../../hooks/useTranslate'
 import { LoadingSpinner } from './LoadingSpinner'
 import type { Conversation, ConversationMessage } from '../../lib/types'
+
+// Non-Latin scripts (Cyrillic, Hebrew, Arabic, Greek, CJK, Hangul) — a
+// dead-giveaway that a message isn't English.
+const NON_LATIN = /[Ѐ-ӿ֐-׿؀-ۿͰ-Ͽ一-鿿぀-ヿ가-힯]/
+// Accented Latin characters common in IT/DE/FR/DA/ES but not English.
+const LATIN_DIACRITICS = /[àâäáãåæçèéêëìíîïñòóôöõøùúûüýÿœßÀÂÄÁÃÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÖÕØÙÚÛÜ]/
+// Plain-ASCII function words that flag a non-English message even when it has
+// no accents (e.g. Danish "ja tak", German "und", Italian "grazie").
+const FOREIGN_WORDS = /\b(ja|tak|nej|og|ikke|jeg|takk|danke|nein|und|ich|nicht|bitte|sehr|gerne|grazie|prego|sono|vorrei|anche|perche|perché|questo|della|delle|molto|buongiorno|merci|oui|bonjour|avec|pour|vous|nous|voyage|souhaite|assurance|hola|gracias|para|con|por)\b/i
+
+/** Cheap client-side heuristic: does this text likely contain non-English? */
+function looksNonEnglish(text: string): boolean {
+  if (!text) return false
+  if (NON_LATIN.test(text)) return true
+  if (FOREIGN_WORDS.test(text)) return true
+  // Only then check for stray accents — but first drop emails, URLs and
+  // Capitalised proper nouns (names/places). An accented name like
+  // "Miguel Táuler" shouldn't flag an otherwise-English conversation.
+  const cleaned = text
+    .replace(/\S+@\S+/g, ' ')
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/\b[A-ZÀ-Þ][a-zà-ÿ'’-]*\b/g, ' ')
+  return LATIN_DIACRITICS.test(cleaned)
+}
 
 function getToolName(msg: ConversationMessage): string | null {
   if (msg.tool_calls && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
@@ -48,11 +72,24 @@ export function ConversationChat({ sessionId, contactName }: {
     [messages],
   )
 
+  // Skip the whole feature when the conversation is already all English —
+  // no point calling the translator (or showing the button) for those.
+  const needsTranslation = useMemo(
+    () => translatable.some(t => looksNonEnglish(t.text)),
+    [translatable],
+  )
+
+  // Reset when the viewer switches to a different conversation.
+  useEffect(() => {
+    setTranslate(false)
+    setShowOriginal(new Set())
+  }, [sessionId])
+
   const {
     data: translations = {},
     isLoading: translating,
     isError: translateError,
-  } = useTranslateMessages(sessionId, translatable, translate)
+  } = useTranslateMessages(sessionId, translatable, translate && needsTranslation)
 
   const toggleOriginal = (id: number) =>
     setShowOriginal(prev => {
@@ -65,23 +102,24 @@ export function ConversationChat({ sessionId, contactName }: {
 
   return (
     <div>
-      {/* Translate control */}
+      {/* Translate control — only shown when the thread has non-English text */}
+      {needsTranslation && (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
         gap: '10px', marginBottom: '10px',
       }}>
         {translate && translateError && (
-          <span style={{ fontSize: '12px', color: '#b91c1c' }}>
-            Translation failed
-          </span>
-        )}
-        {translate && translating && (
-          <span style={{ fontSize: '12px', color: '#7a8fa0' }}>
-            Translating…
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            fontSize: '12px', color: '#b91c1c',
+          }}>
+            <i className="fas fa-triangle-exclamation" style={{ fontSize: '11px' }} />
+            Couldn&apos;t translate
           </span>
         )}
         <button
           onClick={() => setTranslate(v => !v)}
+          disabled={translating}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '7px',
             padding: '6px 13px', borderRadius: '20px',
@@ -89,13 +127,23 @@ export function ConversationChat({ sessionId, contactName }: {
             background: translate ? '#0A8754' : 'white',
             color: translate ? 'white' : '#374151',
             fontFamily: 'inherit', fontSize: '13px', fontWeight: 600,
-            cursor: 'pointer', outline: 'none',
+            cursor: translating ? 'default' : 'pointer', outline: 'none',
+            opacity: translating ? 0.75 : 1,
+            transition: 'background 0.15s ease, border-color 0.15s ease',
           }}
         >
-          <i className="fas fa-language" style={{ fontSize: '14px' }} />
-          {translate ? 'Showing English' : 'Translate to English'}
+          <i
+            className={
+              translating ? 'fas fa-circle-notch fa-spin'
+                : translate ? 'fas fa-check'
+                : 'fas fa-language'
+            }
+            style={{ fontSize: '13px' }}
+          />
+          {translating ? 'Translating…' : translate ? 'Translated to English' : 'Translate to English'}
         </button>
       </div>
+      )}
 
       <div className="conv-chat">
         {messages.map(m => {
