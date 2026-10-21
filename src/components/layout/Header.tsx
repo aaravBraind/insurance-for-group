@@ -7,6 +7,7 @@ const TAB_TITLES: Record<TabId, string> = {
   leads: 'Leads Pipeline',
   conversations: 'Conversations',
   contacts: 'Contacts',
+  knowledge: 'Knowledge Gaps',
   settings: 'Settings',
 }
 

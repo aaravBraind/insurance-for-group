@@ -124,7 +124,39 @@ export interface ConversationSummary {
   message_count: number
 }
 
-export type TabId = 'dashboard' | 'leads' | 'conversations' | 'contacts' | 'settings'
+// Martin's Knowledge Gaps board (ivy_kb_gap_cards). One card = one underlying
+// question; the weekly triage workflow creates them and merges repeats.
+export type GapCardType = 'needs_answer' | 'check_claim'
+export type GapBoardStatus = 'todo' | 'answered' | 'ivy_correct' | 'not_a_problem'
+
+export interface GapCard {
+  id: number
+  card_type: GapCardType
+  question: string
+  topic: string | null
+  ivy_said: string | null
+  why: string | null
+  board_status: GapBoardStatus
+  martin_answer: string | null
+  resolved_by: string | null
+  resolved_at: string | null
+  times_asked: number
+  first_asked_at: string | null
+  last_asked_at: string | null
+  created_at: string
+}
+
+// The individual lead turns behind a card (ivy_kb_retrievals rows).
+export interface GapCardAsk {
+  id: number
+  session_id: string
+  channel: ConversationChannel
+  question: string
+  answer_given: string | null
+  created_at: string
+}
+
+export type TabId = 'dashboard' | 'leads' | 'conversations' | 'contacts' | 'knowledge' | 'settings'
 
 export interface DateRange {
   start: string // ISO date "YYYY-MM-DD"

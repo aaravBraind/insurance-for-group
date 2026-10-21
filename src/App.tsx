@@ -7,6 +7,7 @@ import { DashboardTab } from './components/tabs/DashboardTab'
 import { LeadsTab } from './components/tabs/LeadsTab'
 import { ConversationsTab } from './components/tabs/ConversationsTab'
 import { ContactsTab } from './components/tabs/ContactsTab'
+import { KnowledgeGapsTab } from './components/tabs/KnowledgeGapsTab'
 import { SettingsTab } from './components/tabs/SettingsTab'
 import { LoginPage } from './components/auth/LoginPage'
 import { LoadingSpinner } from './components/shared/LoadingSpinner'
@@ -27,8 +28,16 @@ function daysAgoISO(n: number) {
   return d.toISOString().split('T')[0]
 }
 
+const TAB_IDS: TabId[] = ['dashboard', 'leads', 'conversations', 'contacts', 'knowledge', 'settings']
+
+// Lets emails deep-link to a tab, e.g. Martin's weekly nudge opens ?tab=knowledge.
+function initialTab(): TabId {
+  const tab = new URLSearchParams(window.location.search).get('tab') as TabId | null
+  return tab && TAB_IDS.includes(tab) ? tab : 'dashboard'
+}
+
 function AppInner() {
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard')
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   const [selectedLead, setSelectedLead] = useState<LeadWithContact | null>(null)
   const [autoOpenSession, setAutoOpenSession] = useState<string | null>(null)
   const [openLeadId, setOpenLeadId] = useState<string | null>(null)
@@ -79,6 +88,7 @@ function AppInner() {
             />
           )}
           {activeTab === 'contacts' && <ContactsTab dateRange={dateRange} />}
+          {activeTab === 'knowledge' && <KnowledgeGapsTab />}
           {activeTab === 'settings' && <SettingsTab />}
         </div>
       </div>

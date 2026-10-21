@@ -1,5 +1,6 @@
 import type { TabId } from '../../lib/types'
 import { supabase } from '../../lib/supabase'
+import { useGapCards } from '../../hooks/useKnowledgeGaps'
 import logo from '../../assets/logo.jpg'
 
 interface SidebarProps {
@@ -12,10 +13,14 @@ const navItems: { id: TabId; icon: string; label: string }[] = [
   { id: 'leads', icon: 'fa-filter', label: 'Leads' },
   { id: 'conversations', icon: 'fa-comments', label: 'Conversations' },
   { id: 'contacts', icon: 'fa-address-book', label: 'Contacts' },
+  { id: 'knowledge', icon: 'fa-lightbulb', label: 'Knowledge Gaps' },
   { id: 'settings', icon: 'fa-cog', label: 'Settings' },
 ]
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+  const { data: gapCards = [] } = useGapCards()
+  const gapsTodo = gapCards.filter(c => c.board_status === 'todo').length
+
   return (
     <aside className="sidebar">
       <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -34,6 +39,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           onClick={() => onTabChange(item.id)}
         >
           <i className={`fas ${item.icon}`}></i> {item.label}
+          {item.id === 'knowledge' && gapsTodo > 0 && <span className="nav-badge">{gapsTodo}</span>}
         </button>
       ))}
       <button
