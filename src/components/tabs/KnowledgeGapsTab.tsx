@@ -197,7 +197,7 @@ function GapDetailsModal({ card, onClose }: { card: GapCard; onClose: () => void
 }
 
 export function KnowledgeGapsTab() {
-  const { data: cards = [], isLoading } = useGapCards()
+  const { data: cards = [], isLoading, isError, refetch } = useGapCards()
   const resolve = useResolveGapCard()
   const [editingId, setEditingId] = useState<number | null>(null)
   const [detailsCard, setDetailsCard] = useState<GapCard | null>(null)
@@ -209,6 +209,16 @@ export function KnowledgeGapsTab() {
   const [unsaved, setUnsaved] = useState<Record<number, string>>({})
 
   if (isLoading) return <LoadingSpinner />
+  // Never fall through to "All clear" when the load failed: an empty board
+  // would tell Martin there is nothing to do.
+  if (isError) {
+    return (
+      <div className="login-error" style={{ justifyContent: 'space-between' }}>
+        <span><i className="fas fa-exclamation-circle"></i> Couldn't load the Knowledge Gaps board.</span>
+        <button type="button" className="gap-btn" onClick={() => refetch()}>Try again</button>
+      </div>
+    )
+  }
 
   const byColumn = (col: ColumnId) => {
     const list = cards.filter(c => columnOf(c) === col)
