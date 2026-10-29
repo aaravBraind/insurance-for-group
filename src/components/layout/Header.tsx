@@ -8,6 +8,7 @@ const TAB_TITLES: Record<TabId, string> = {
   conversations: 'Conversations',
   contacts: 'Contacts',
   knowledge: 'Knowledge Gaps',
+  'conflict-cover': 'Conflict Cover',
   settings: 'Settings',
 }
 
