@@ -8,6 +8,7 @@ import { LeadsTab } from './components/tabs/LeadsTab'
 import { ConversationsTab } from './components/tabs/ConversationsTab'
 import { ContactsTab } from './components/tabs/ContactsTab'
 import { KnowledgeGapsTab } from './components/tabs/KnowledgeGapsTab'
+import { ConflictCoverTab } from './components/tabs/ConflictCoverTab'
 import { SettingsTab } from './components/tabs/SettingsTab'
 import { LoginPage } from './components/auth/LoginPage'
 import { LoadingSpinner } from './components/shared/LoadingSpinner'
@@ -28,7 +29,7 @@ function daysAgoISO(n: number) {
   return d.toISOString().split('T')[0]
 }
 
-const TAB_IDS: TabId[] = ['dashboard', 'leads', 'conversations', 'contacts', 'knowledge', 'settings']
+const TAB_IDS: TabId[] = ['dashboard', 'leads', 'conversations', 'contacts', 'knowledge', 'conflict-cover', 'settings']
 
 // Lets emails deep-link to a tab, e.g. Martin's weekly nudge opens ?tab=knowledge.
 function initialTab(): TabId {
@@ -89,6 +90,7 @@ function AppInner() {
           )}
           {activeTab === 'contacts' && <ContactsTab dateRange={dateRange} />}
           {activeTab === 'knowledge' && <KnowledgeGapsTab />}
+          {activeTab === 'conflict-cover' && <ConflictCoverTab />}
           {activeTab === 'settings' && <SettingsTab />}
         </div>
       </div>

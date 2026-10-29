@@ -156,9 +156,67 @@ export interface GapCardAsk {
   created_at: string
 }
 
-export type TabId = 'dashboard' | 'leads' | 'conversations' | 'contacts' | 'knowledge' | 'settings'
+export type TabId = 'dashboard' | 'leads' | 'conversations' | 'contacts' | 'knowledge' | 'conflict-cover' | 'settings'
 
 export interface DateRange {
   start: string // ISO date "YYYY-MM-DD"
   end: string
+}
+
+// Conflict Cover (demo, Oct 2026). Rows written by the n8n post-approve and
+// scheduler workflows; the dashboard only reads them.
+export type CcStatus = 'approved' | 'issued' | 'in_force' | 'ending' | 'ended' | 'cancelled' | string
+
+export interface CcBooking {
+  id: number
+  booking_ref: string
+  certificate_no: string
+  client_name: string
+  client_billing: string
+  booker_name: string | null
+  booker_email: string | null
+  person_name: string
+  person_email: string
+  over_65: boolean
+  residence_country: string
+  destination: string
+  zone: number | null
+  cover_start: string // YYYY-MM-DD
+  cover_end: string
+  policy_days: number
+  sum_insured_usd: number
+  premium_usd: number
+  addon_sickness: boolean
+  addon_income: boolean
+  status: CcStatus
+  approved_at: string
+  issued_at: string | null
+  confirmation_sent_at: string | null
+  nok_requested_at: string | null
+  nok_chasers: number
+  nok_completed_at: string | null
+  nok_missing_flagged_at: string | null
+  sales_reported_at: string | null
+  end_reminder_at: string | null
+  doc_token: string
+}
+
+export interface CcEvent {
+  id: number
+  booking_id: number
+  event_type: string
+  channel: string | null
+  recipient: string | null
+  subject: string | null
+  created_at: string
+}
+
+export interface CcNextOfKin {
+  id: number
+  booking_id: number
+  full_name: string
+  relationship: string | null
+  phone: string | null
+  email: string | null
+  submitted_at: string
 }

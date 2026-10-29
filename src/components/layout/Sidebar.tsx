@@ -1,6 +1,7 @@
 import type { TabId } from '../../lib/types'
 import { supabase } from '../../lib/supabase'
 import { useGapCards } from '../../hooks/useKnowledgeGaps'
+import { useCcBookings, ccNeedsAttention } from '../../hooks/useConflictCover'
 import logo from '../../assets/logo.jpg'
 
 interface SidebarProps {
@@ -14,12 +15,15 @@ const navItems: { id: TabId; icon: string; label: string }[] = [
   { id: 'conversations', icon: 'fa-comments', label: 'Conversations' },
   { id: 'contacts', icon: 'fa-address-book', label: 'Contacts' },
   { id: 'knowledge', icon: 'fa-lightbulb', label: 'Knowledge Gaps' },
+  { id: 'conflict-cover', icon: 'fa-shield-halved', label: 'Conflict Cover' },
   { id: 'settings', icon: 'fa-cog', label: 'Settings' },
 ]
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { data: gapCards = [] } = useGapCards()
   const gapsTodo = gapCards.filter(c => c.board_status === 'todo').length
+  const { data: ccBookings = [] } = useCcBookings()
+  const ccAttention = ccBookings.filter(ccNeedsAttention).length
 
   return (
     <aside className="sidebar">
@@ -40,6 +44,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         >
           <i className={`fas ${item.icon}`}></i> {item.label}
           {item.id === 'knowledge' && gapsTodo > 0 && <span className="nav-badge">{gapsTodo}</span>}
+          {item.id === 'conflict-cover' && ccAttention > 0 && <span className="nav-badge">{ccAttention}</span>}
         </button>
       ))}
       <button
